@@ -1716,11 +1716,11 @@ class AlignedMatrixContent():
         #self.print_globalVector(3)
         #self.print_globalVector(2)
         
-        for iLineIndex in range(len(self.get_matrix())):
-            print(self.get_matrix_lineName(iLineIndex))
-            print(self.translate_cgalcodeGrammar(self.get_lineName_Vector(iLineIndex),True))
-            #self.print_individualVector(self.get_lineName_Vector(iLineIndex))
-            exit()
+        #for iLineIndex in range(len(self.get_matrix())):
+            #print(self.get_matrix_lineName(iLineIndex))
+            #print(self.translate_cgalcodeGrammar(self.get_lineName_Vector(iLineIndex),True))
+            ##self.print_individualVector(self.get_lineName_Vector(iLineIndex))
+            #exit()
             
         
     def get_lineName_Vector(self,iLineIndex):
@@ -1822,6 +1822,7 @@ class AlignedMatrixContent():
             #print(cCurrentChar,sElement)
             sGrammar+=sElement
         
+        print(sGrammar)
         tGrammar=[X for X in sGrammar]
         if bTranscript:
             for iIndex in range(len(tGrammar)):
@@ -2148,24 +2149,6 @@ class AlignedMatrixContent():
         else:
             return self.globalPopVector[iIndex]
     
-    #def get_currentPopVector(self,iIndex=None):
-        #if iIndex is None:
-            #return self.currentPopVector
-        #else:
-            #return self.currentPopVector[iIndex]
-    
-    #def get_initialPopVector(self,iIndex=None):
-        #if iIndex is None:
-            #return self.initialPopVector
-        #else:
-            #return self.initialPopVector[iIndex]
-    
-    #def set_currentPopVector(self,oValue,iIndex=None):
-        #if iIndex is None:
-            #self.currentPopVector=list(oValue)
-        #else:
-            #self.currentPopVector[iIndex]=oValue
-    
     def set_globalPopVector(self,oValue,iIndex=None):
         if iIndex is None:
             self.globalPopVector=list(oValue)
@@ -2254,19 +2237,45 @@ class AlignedMatrixContent():
         iLine=len(dTr2Data)
         tMatrix=[]
         tBaseVector=[0]*iSize
-        for sTrId in dTr2Data:
+        for sTrId in sorted(dTr2Data):
+            #print(sTrId)
             tCurrentVector=list(tBaseVector)
             self.set_matrix_lineName(sTrId,True)
-            for dbKey in dTr2Data[sTrId]:
-                iStart=dTr2Data[sTrId][dbKey]["GeneStart"]
-                iStop=dTr2Data[sTrId][dbKey]["GeneStop"]
-                #print(iStart,iStop,"vs",iSize)
-                if iStart>iStop:
-                    print("ERROR L1705 : iStart>iStop")
-                    exit()
-                for iIndex in range(iStart,iStop+1):
+            iPreviousReadStop=None
+            iPreviousGeneStop=None
+            iLastIndex=None
+            for iDbIndex in range(len(dTr2Data[sTrId])):
+                dbKey=sorted(dTr2Data[sTrId])[iDbIndex]
+                #print(dbKey)
+                iGeneStart=dTr2Data[sTrId][dbKey]["GeneStart"]
+                iGeneStop=dTr2Data[sTrId][dbKey]["GeneStop"]
+                iReadStart=dTr2Data[sTrId][dbKey]["ReadStart"]
+                iReadStop=dTr2Data[sTrId][dbKey]["ReadStop"]
+                if iGeneStart>iGeneStop:
+                    exit("ERROR L1705 : iStart>iStop")
+                for iIndex in range(iGeneStart,iGeneStop+1):
                     if iIndex<iSize:
                         tCurrentVector[iIndex]=1
+                    else:
+                        exit("ERROR L2257 : iIndex>=iSize")
+                if iDbIndex==0:
+                    if iReadStart!=0:
+                        iDelta=-(iReadStart-1)
+                        tCurrentVector[iGeneStart-1]=iDelta
+                elif iDbIndex==len(dTr2Data[sTrId])-1:
+                    iReadSize=dTr2Data[sTrId][dbKey]["ReadSize"]
+                    if iReadStop!=iReadSize:
+                        iDelta=-(iReadSize-iReadStop)
+                        tCurrentVector[iGeneStop+1]=iDelta
+                else:
+                    if iPreviousReadStop+1<iReadStart:
+                        iDelta=-(iReadStart-iPreviousReadStop)
+                        tCurrentVector[iPreviousGeneStop+1]=iDelta
+                        tCurrentVector[iGeneStart-1]=iDelta
+                iPreviousReadStop=iReadStop
+                iPreviousGeneStop=iGeneStop
+                iLastIndex=iIndex
+                    
             tMatrix.append(tCurrentVector)
         self.currentMatrix=list(tMatrix)
         self.initialMatrix=list(tMatrix)
