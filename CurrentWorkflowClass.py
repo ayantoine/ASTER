@@ -1681,12 +1681,10 @@ class AlignedMatrixContent():
         
         self.size=None
         
-        #self.initialMatrix=[]
         self.currentMatrix=[]
         self.matrix_lineName=[]
         self.globalVector=[]
         self.globalBlockName=[]
-        #self.initialPopVector=[]
         self.currentPopVector=[]
         self.globalPopVector=[]
         
@@ -1697,32 +1695,91 @@ class AlignedMatrixContent():
         self.setup_popVector()
         self.setup_globalVector()
         self.assign_blockName()
-        print(self.translate_cgalcodeGrammar(self.get_globalVector()))
+        #print(self.translate_cgalcodeGrammar(self.get_globalVector()))
         
         #self.print_globalVector(4)
         #self.print_globalVector(3)
         #self.print_globalVector(2)
         #self.print_globalVector(1)
         
+        #iDebugLineIndex=1
+        #iStartDebug=35
+        #iStopDebug=45
+        #print(self.get_matrix_lineName()[iDebugLineIndex])
+        
+        #print(self.get_globalVector()[iStartDebug:iStopDebug+1])
+        #print(self.get_globalPopVector()[iStartDebug:iStopDebug+1])
+        #print(self.get_submatrix_byCol(iStartDebug,iStopDebug)[iDebugLineIndex])
+        
         self.regroup_globalVector()  #This will modify the matrix!!
         
         self.setup_popVector()
         self.setup_globalVector()
         self.assign_blockName()
-        print(self.translate_cgalcodeGrammar(self.get_globalVector()))
+        #print(self.get_globalVector()[iStartDebug:iStopDebug+1])
+        #print(self.get_globalPopVector()[iStartDebug:iStopDebug+1])
+        #print(self.get_submatrix_byCol(iStartDebug,iStopDebug)[iDebugLineIndex])
+        
+        #print(self.get_globalVector()[30:70])
+        #print(self.get_globalPopVector()[30:70])
+        #print(self.get_submatrix_byCol(30,70))
+        #exit()
+        #print(self.translate_cgalcodeGrammar(self.get_globalVector()))
         
         #self.print_globalVector(5)
         #self.print_globalVector(4)
         #self.print_globalVector(3)
         #self.print_globalVector(2)
         
-        #for iLineIndex in range(len(self.get_matrix())):
-            #print(self.get_matrix_lineName(iLineIndex))
+        print(self.print_line_blockName())
+        for iLineIndex in range(len(self.get_matrix())):
+            print(self.get_matrix_lineName(iLineIndex))
             #print(self.translate_cgalcodeGrammar(self.get_lineName_Vector(iLineIndex),True))
-            ##self.print_individualVector(self.get_lineName_Vector(iLineIndex))
+            self.print_line_blockName(iLineIndex)
+            #self.print_individualVector(self.get_lineName_Vector(iLineIndex))
+            #print(self.get_lineName_Vector(iLineIndex))
             #exit()
+    
+    def get_1Dmatrix(self):
+        return [bool(X) for X in self.get_globalPopVector()]
+    
+    def get_line_blockName(self,iLineIndex=None):
+        tIndividualBlockNameVector=[]
+        if iLineIndex is not None:
+            tTargetedMatrixLine=self.get_matrix()[iLineIndex]
+        else:
+            tTargetedMatrixLine=self.get_1Dmatrix()
+        for iColIndex in range(len(tTargetedMatrixLine)):
+            if tTargetedMatrixLine[iColIndex]==1:
+                tIndividualBlockNameVector.append(self.get_globalBlockName(iColIndex))
+            elif tTargetedMatrixLine[iColIndex]==0:
+                tIndividualBlockNameVector.append("i")
+            elif tTargetedMatrixLine[iColIndex]<0:
+                tIndividualBlockNameVector.append(tTargetedMatrixLine[iColIndex])
+        return tIndividualBlockNameVector
+    
+    def print_line_blockName(self,iLineIndex=None):
+        #for iColIndex in range(len(self.get_globalBlockName())):
+            #print(iColIndex,self.get_globalVector(iColIndex),self.get_globalBlockName(iColIndex),self.get_matrix()[iLineIndex][iColIndex])
+        tIndividualBlockNameVector=self.get_line_blockName(iLineIndex)
+        tPrintBlockName=[]
+        for iColIndex in range(len(tIndividualBlockNameVector)):
+            #print(tIndividualBlockNameVector[iColIndex],)
+            if iColIndex==0:
+                if tIndividualBlockNameVector[iColIndex]=="i":
+                    continue
+                else:
+                    tPrintBlockName.append(tIndividualBlockNameVector[iColIndex])
+            elif tIndividualBlockNameVector[iColIndex]==tIndividualBlockNameVector[iColIndex-1]:
+                continue
+            else:
+                tPrintBlockName.append(tIndividualBlockNameVector[iColIndex])
+        print(tPrintBlockName)
+                
             
+                
         
+    
     def get_lineName_Vector(self,iLineIndex):
         tIndividualVector=[]
         tGlobalVector=self.get_globalVector()
@@ -1737,18 +1794,17 @@ class AlignedMatrixContent():
         #print(tIndividualVector)
         return tIndividualVector
             
-    
-    
     def assign_blockName(self):
         tGlobalVector=self.get_globalVector()
         tBlockNameVector=list(tGlobalVector)
-        sBlockName=self.update_blockName()
+        sBlockName=None
         for iIndex in range(len(tGlobalVector)):
             if tGlobalVector[iIndex] not in ["i","="]:
-                tBlockNameVector[iIndex]=sBlockName
                 sBlockName=self.update_blockName(sBlockName)
+                tBlockNameVector[iIndex]=sBlockName
             elif tGlobalVector[iIndex]=="=":
                 tBlockNameVector[iIndex]=sBlockName
+            #print(iIndex,tGlobalVector[iIndex],tBlockNameVector[iIndex])
         self.set_globalBlockName(list(tBlockNameVector))
         
     def set_globalBlockName(self,oValue,iIndex=None):        
@@ -1762,91 +1818,91 @@ class AlignedMatrixContent():
             return self.globalBlockName
         return self.globalBlockName[iIndex]
     
-    def translate_cgalcodeGrammar(self,tGlobalVector,bTranscript=False):
-        #print(tGlobalVector)
-        tList=[]
-        tId=[]
-        sPreviousChar=None
-        for iIndex in range(len(tGlobalVector)):
-            if iIndex==0:
-                tList.append(tGlobalVector[iIndex])
-                tId.append(self.get_globalBlockName(iIndex))
-            elif iIndex==len(tGlobalVector)-1:
-                tList.append(tGlobalVector[iIndex])
-                tId.append(self.get_globalBlockName(iIndex))
-            elif tGlobalVector[iIndex]=="=":
-                continue
-            elif sPreviousChar!=tGlobalVector[iIndex]:
-                tList.append(tGlobalVector[iIndex])
-                tId.append(self.get_globalBlockName(iIndex))
-            elif sPreviousChar==tGlobalVector[iIndex] and sPreviousChar in [">","<"] and tGlobalVector[iIndex] in [">","<"]:
-                tList.append(tGlobalVector[iIndex])
-                tId.append(self.get_globalBlockName(iIndex))
-            sPreviousChar=tGlobalVector[iIndex]
+    #def translate_cgalcodeGrammar(self,tGlobalVector,bTranscript=False):
+        ##print(tGlobalVector)
+        #tList=[]
+        #tId=[]
+        #sPreviousChar=None
+        #for iIndex in range(len(tGlobalVector)):
+            #if iIndex==0:
+                #tList.append(tGlobalVector[iIndex])
+                #tId.append(self.get_globalBlockName(iIndex))
+            #elif iIndex==len(tGlobalVector)-1:
+                #tList.append(tGlobalVector[iIndex])
+                #tId.append(self.get_globalBlockName(iIndex))
+            #elif tGlobalVector[iIndex]=="=":
+                #continue
+            #elif sPreviousChar!=tGlobalVector[iIndex]:
+                #tList.append(tGlobalVector[iIndex])
+                #tId.append(self.get_globalBlockName(iIndex))
+            #elif sPreviousChar==tGlobalVector[iIndex] and sPreviousChar in [">","<"] and tGlobalVector[iIndex] in [">","<"]:
+                #tList.append(tGlobalVector[iIndex])
+                #tId.append(self.get_globalBlockName(iIndex))
+            #sPreviousChar=tGlobalVector[iIndex]
         
-        print(tList)
-        #print(tId)
+        #print(tList)
+        ##print(tId)
         
-        sGrammar=""
-        #sBlockId=self.update_blockName()
-        for iIndex in range(len(tList)):
-            sBlockId=tId[iIndex]
-            cCurrentChar=tList[iIndex]
-            cPreviousChar=None
-            cNextChar=None
-            if iIndex!=0:
-                cPreviousChar=tList[iIndex-1]
-            if iIndex!=len(tList)-1:
-                cNextChar=tList[iIndex+1]
-            sElement=""
-            if cCurrentChar=="i":
-                if cPreviousChar is not None:
-                    if cPreviousChar!=cCurrentChar:
-                        sElement+="<"
-                if cPreviousChar!=cCurrentChar:
-                    sElement+="i"
-                if cNextChar is not None:
-                    if cNextChar!=cCurrentChar:
-                        sElement+=">"
-            elif cCurrentChar not in [">","<"]:
-                sElement+=str(sBlockId)
-                #sBlockId=self.update_blockName(sBlockId)
-            elif cCurrentChar==">":
-                sElement+="<"+str(sBlockId)
-                #sBlockId=self.update_blockName(sBlockId)
-            elif cCurrentChar=="<":
-                sElement+=">"+str(sBlockId)
-                #sBlockId=self.update_blockName(sBlockId)
-            else:
-                exit("ERROR 1768 : {} does not exist in tGlobalVector".format(cCurrentChar))
-            #print(cCurrentChar,sElement)
-            sGrammar+=sElement
+        #sGrammar=""
+        ##sBlockId=self.update_blockName()
+        #for iIndex in range(len(tList)):
+            #sBlockId=tId[iIndex]
+            #cCurrentChar=tList[iIndex]
+            #cPreviousChar=None
+            #cNextChar=None
+            #if iIndex!=0:
+                #cPreviousChar=tList[iIndex-1]
+            #if iIndex!=len(tList)-1:
+                #cNextChar=tList[iIndex+1]
+            #sElement=""
+            #if cCurrentChar=="i":
+                #if cPreviousChar is not None:
+                    #if cPreviousChar!=cCurrentChar:
+                        #sElement+="<"
+                #if cPreviousChar!=cCurrentChar:
+                    #sElement+="i"
+                #if cNextChar is not None:
+                    #if cNextChar!=cCurrentChar:
+                        #sElement+=">"
+            #elif cCurrentChar not in [">","<"]:
+                #sElement+=str(sBlockId)
+                ##sBlockId=self.update_blockName(sBlockId)
+            #elif cCurrentChar==">":
+                #sElement+="<"+str(sBlockId)
+                ##sBlockId=self.update_blockName(sBlockId)
+            #elif cCurrentChar=="<":
+                #sElement+=">"+str(sBlockId)
+                ##sBlockId=self.update_blockName(sBlockId)
+            #else:
+                #exit("ERROR 1768 : {} does not exist in tGlobalVector".format(cCurrentChar))
+            ##print(cCurrentChar,sElement)
+            #sGrammar+=sElement
         
-        print(sGrammar)
-        tGrammar=[X for X in sGrammar]
-        if bTranscript:
-            for iIndex in range(len(tGrammar)):
-                if tGrammar[iIndex]==">":
-                    tGrammar[iIndex]="["
-                    break
-            for iIndex in range(len(tGrammar)-1,-1,-1):
-                if tGrammar[iIndex]=="<":
-                    tGrammar[iIndex]="]"
-                    break
-        else:
-            for iIndex in range(len(tGrammar)):
-                if tGrammar[iIndex]==">":
-                    tGrammar[iIndex]="{"
-                if tGrammar[iIndex]=="<":
-                    break
-            for iIndex in range(len(tGrammar)-1,-1,-1):
-                if tGrammar[iIndex]=="<":
-                    tGrammar[iIndex]="}"
-                if tGrammar[iIndex]==">":
-                    break
-        sGrammar="".join(tGrammar)
+        #print(sGrammar)
+        #tGrammar=[X for X in sGrammar]
+        #if bTranscript:
+            #for iIndex in range(len(tGrammar)):
+                #if tGrammar[iIndex]==">":
+                    #tGrammar[iIndex]="["
+                    #break
+            #for iIndex in range(len(tGrammar)-1,-1,-1):
+                #if tGrammar[iIndex]=="<":
+                    #tGrammar[iIndex]="]"
+                    #break
+        #else:
+            #for iIndex in range(len(tGrammar)):
+                #if tGrammar[iIndex]==">":
+                    #tGrammar[iIndex]="{"
+                #if tGrammar[iIndex]=="<":
+                    #break
+            #for iIndex in range(len(tGrammar)-1,-1,-1):
+                #if tGrammar[iIndex]=="<":
+                    #tGrammar[iIndex]="}"
+                #if tGrammar[iIndex]==">":
+                    #break
+        #sGrammar="".join(tGrammar)
         
-        return sGrammar
+        #return sGrammar
         
     def update_blockName(self,sName=None):
         if sName is None:
@@ -1862,8 +1918,6 @@ class AlignedMatrixContent():
         iLastIndex=None
         iCurrentGroup=0
         dGroup2Index={}
-        #print(self.get_globalVector()[2840:2850])
-        #print(self.get_currentPopVector()[2840:2850])
         for iIndex in range(len(self.get_globalVector())):
             if self.get_globalVector(iIndex) not in ["i","="]:
                 #if iIndex in range(2840,2850):print(iIndex)
@@ -1943,33 +1997,73 @@ class AlignedMatrixContent():
             iStopColIndex=dGroup2Index[iGroupId][-1]
             if sTag=="<":
                 for iLineIndex in range(len(tMatrix)):
+                    #print(self.get_matrix_lineName()[iLineIndex])
                     if tMatrix[iLineIndex][iUpstreamColIndex]==1:
                         #This read is already aligned before this section and is not concerned by changement
                         continue
-                    if sum(tMatrix[iLineIndex][iStartColIndex:iStopColIndex+1])==0:
+                    if len([X for X in tMatrix[iLineIndex][iStartColIndex:iStopColIndex+1] if X==1])==0:
                         #This read is not aligned during this section and is not concerned by changement
                         continue
+                    #print("A>>>",tMatrix[iLineIndex][iStartColIndex-2:iStopColIndex+2])
+                    bHaveNegativeValue=False
+                    iNegativeValue=None
+                    iNegativeValueIndex=None
+                    #print("B>>>",tMatrix[iLineIndex][iStartColIndex-2:iStopColIndex+2])
+                    for iColIndex in range(iStartColIndex-1,iStopColIndex+1): # from iStartColIndex-1 to take into account -40[< 1 1 1 1]
+                        if tMatrix[iLineIndex][iColIndex]<0:
+                            bHaveNegativeValue=True
+                            iNegativeValue=tMatrix[iLineIndex][iColIndex]
+                            iNegativeValueIndex=iColIndex
+                            tMatrix[iLineIndex][iColIndex]=0 # turn it to 0 now
+                            break
+                            #print(">",iNegativeValue,iNegativeValueIndex)
+                    #print("C>>>",tMatrix[iLineIndex][iStartColIndex-2:iStopColIndex+2])
                     for iColIndex in range(iStartColIndex,iStopColIndex+1):
                         if iColIndex<iMajorityIndex:
-                            tMatrix[iLineIndex][iColIndex]=0
+                            tMatrix[iLineIndex][iColIndex]=0                                
                         if iColIndex>=iMajorityIndex:
                             tMatrix[iLineIndex][iColIndex]=1
+                        if bHaveNegativeValue:
+                            #print(iColIndex,iMajorityIndex-1)
+                            if iColIndex==iMajorityIndex-1:
+                                #print("Z",tMatrix[iLineIndex][iStartColIndex:iStopColIndex+2])
+                                tMatrix[iLineIndex][iColIndex]=iNegativeValue
+                                #print("Z",tMatrix[iLineIndex][iStartColIndex:iStopColIndex+2])
+                    #print("D>>>",tMatrix[iLineIndex][iStartColIndex-2:iStopColIndex+2])
+                            
             else:
                 for iLineIndex in range(len(tMatrix)):
+                    #print(self.get_matrix_lineName()[iLineIndex])
                     #print("Avant",tMatrix[iLineIndex][iStartColIndex:iStopColIndex+2])
                     if tMatrix[iLineIndex][iDownstreamColIndex]==1:
                         #This read is ever aligned after this section and is not concerned by changement
                         #print("Apres",tMatrix[iLineIndex][iStartColIndex:iStopColIndex+2])
                         continue
-                    if sum(tMatrix[iLineIndex][iStartColIndex:iStopColIndex+1])==0:
+                    if len([X for X in tMatrix[iLineIndex][iStartColIndex:iStopColIndex+1] if X==1])==0:
                         #This read is not aligned during this section and is not concerned by changement
                         #print("Apres",tMatrix[iLineIndex][iStartColIndex:iStopColIndex+2])
                         continue
+                    #print("Avant",tMatrix[iLineIndex][iStartColIndex:iStopColIndex+2])
+                    #print("A>>>",tMatrix[iLineIndex][iStartColIndex-2:iStopColIndex+2])
+                    bHaveNegativeValue=False
+                    iNegativeValue=None
+                    iNegativeValueIndex=None
+                    #print("B>>>",tMatrix[iLineIndex][iStartColIndex-2:iStopColIndex+2])
+                    for iColIndex in range(iStartColIndex,iStopColIndex+1):
+                        if tMatrix[iLineIndex][iColIndex]<0:
+                            bHaveNegativeValue=True
+                            iNegativeValue=tMatrix[iLineIndex][iColIndex]
+                            iNegativeValueIndex=iColIndex
+                    #print("C>>>",tMatrix[iLineIndex][iStartColIndex-2:iStopColIndex+2])
                     for iColIndex in range(iStartColIndex,iStopColIndex+1):
                         if iColIndex<=iMajorityIndex:
                             tMatrix[iLineIndex][iColIndex]=1
                         if iColIndex>iMajorityIndex:
                             tMatrix[iLineIndex][iColIndex]=0
+                        if bHaveNegativeValue:
+                            if iColIndex==iMajorityIndex+1:
+                                tMatrix[iLineIndex][iColIndex]=iNegativeValue
+                    #print("D>>>",tMatrix[iLineIndex][iStartColIndex-2:iStopColIndex+2])
                     #print("Apres",tMatrix[iLineIndex][iStartColIndex:iStopColIndex+2])
             
             if sTag=="<":
@@ -2120,7 +2214,10 @@ class AlignedMatrixContent():
         for iColIndex in range(len(tMatrix[0])):
             iPop=0
             for iLineIndex in range(len(tMatrix)):
-                iPop+=tMatrix[iLineIndex][iColIndex]
+                if tMatrix[iLineIndex][iColIndex]>=0:
+                    iPop+=tMatrix[iLineIndex][iColIndex]
+                else:
+                    iPop+=0 #-X value for unaligned nt are assumed as 0 pop
             tGlobalPopVector.append(iPop)
         self.globalPopVector=list(tGlobalPopVector)
     
@@ -2164,7 +2261,10 @@ class AlignedMatrixContent():
         for iColIndex in range(len(tVector)):
             tCurrentVector=[]
             for iLineIndex in range(len(tMatrix)):
-                tCurrentVector.append(tMatrix[iLineIndex][iColIndex])
+                if tMatrix[iLineIndex][iColIndex]>=0:
+                    tCurrentVector.append(tMatrix[iLineIndex][iColIndex])
+                else:
+                    tCurrentVector.append(0) #-X value for unaligned nt are assumed as 0 pop
             
             dbCurrentVector=tuple(tCurrentVector)
             
@@ -2251,6 +2351,14 @@ class AlignedMatrixContent():
                 iGeneStop=dTr2Data[sTrId][dbKey]["GeneStop"]
                 iReadStart=dTr2Data[sTrId][dbKey]["ReadStart"]
                 iReadStop=dTr2Data[sTrId][dbKey]["ReadStop"]
+                sStrand=dTr2Data[sTrId][dbKey]["Strand"]
+                if sStrand=="+":
+                    sStart="start"
+                    sStop="end"
+                else:
+                    sStart="end"
+                    sStop="start"
+                #print(iGeneStart,iGeneStop,iReadStart,iReadStop,sStrand)
                 if iGeneStart>iGeneStop:
                     exit("ERROR L1705 : iStart>iStop")
                 for iIndex in range(iGeneStart,iGeneStop+1):
@@ -2261,24 +2369,35 @@ class AlignedMatrixContent():
                 if iDbIndex==0:
                     if iReadStart!=0:
                         iDelta=-(iReadStart-1)
-                        tCurrentVector[iGeneStart-1]=iDelta
+                        print("Warning : {}\n\tSoft gap at the {} of the gene ({}-{}: {}nt gap)".format(sTrId,sStart,1,iReadStart,iDelta))
+                        #print("'-> corresponding to {} {} on the gene".format(iGeneStart,iGeneStop))
+                        if sStrand=="+":
+                            tCurrentVector[iGeneStart-1]=iDelta
+                        else:
+                            tCurrentVector[iGeneStop+1]=iDelta
                 elif iDbIndex==len(dTr2Data[sTrId])-1:
                     iReadSize=dTr2Data[sTrId][dbKey]["ReadSize"]
                     if iReadStop!=iReadSize:
                         iDelta=-(iReadSize-iReadStop)
-                        tCurrentVector[iGeneStop+1]=iDelta
+                        print("Warning : {}\n\tSoft gap at the {} of the gene ({}-{}: {}nt gap)".format(sTrId,sStop,iReadStop,iReadSize,iDelta))
+                        #print("'-> corresponding to {} {} on the gene".format(iGeneStart,iGeneStop))
+                        if sStrand=="+":
+                            tCurrentVector[iGeneStop+1]=iDelta
+                        else:
+                            tCurrentVector[iGeneStart-1]=iDelta
                 else:
                     if iPreviousReadStop+1<iReadStart:
                         iDelta=-(iReadStart-iPreviousReadStop)
+                        print("Warning : {}\n\tdiscontinue alignment ({}-{}: {}nt gap)".format(sTrId,iPreviousReadStop,iReadStart,iDelta))
+                        #print("'-> corresponding to {} {} on the gene".format(iGeneStart,iGeneStop))
                         tCurrentVector[iPreviousGeneStop+1]=iDelta
                         tCurrentVector[iGeneStart-1]=iDelta
                 iPreviousReadStop=iReadStop
                 iPreviousGeneStop=iGeneStop
                 iLastIndex=iIndex
-                    
+            #print(tCurrentVector)
             tMatrix.append(tCurrentVector)
         self.currentMatrix=list(tMatrix)
-        self.initialMatrix=list(tMatrix)
     
     def get_matrix_lineName(self,iIndex=None):
         if iIndex is None:
