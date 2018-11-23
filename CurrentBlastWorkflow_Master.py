@@ -9,13 +9,15 @@ import subprocess
 import time
 import datetime
 
-sCurrentVersionScript="v9"
+sCurrentVersionScript="v10"
 iTime1=time.time()
 ########################################################################
 '''
+V10-2018/11/23
+Fixed:Table more accuracy and synthetic
+
 V9-2018/11/06
 Added:Table
-
 V8-2018/10/26
 Added:Quentin's Graph
 V7-2018/10/24
@@ -252,64 +254,67 @@ if __name__ == "__main__":
     tFolderList=[]
     
     for sGeneId in dbListOfTarget:
-        print("WORKING ON {}".format(sGeneId))
-        
-        CreateFolder("./{}".format(sGeneId))
-        tFolderList.append("./{}".format(sGeneId))
-        
-        #SetupFolder()
-        
-        if AGREEDOWNLOAD:
-            print("--download...")
-            ExecuteBashCommand("time python {1} -t {0} -g {0}/{0}.gff -f {0}/{0}.fa".format(
-                sGeneId,SCRIPT1))
+        try:
+            print("WORKING ON {}".format(sGeneId))
+            
+            CreateFolder("./{}".format(sGeneId))
+            tFolderList.append("./{}".format(sGeneId))
+            
+            #SetupFolder()
+            
+            if AGREEDOWNLOAD:
+                print("--download...")
+                ExecuteBashCommand("time python {1} -t {0} -g {0}/{0}.gff -f {0}/{0}.fa".format(
+                    sGeneId,SCRIPT1))
+                    
+            CreateFolder("{}/{}".format(sGeneId,MASKDIR))
+            print("--repeatmasker...")
+            ExecuteBashCommand("time RepeatMasker -pa 4 -s -species mouse -dir {0}/{1} {0}/{0}.fa".format(
+                sGeneId,MASKDIR))
+            if not os.path.isfile("{0}/{1}/{0}.fa.masked".format(sGeneId,MASKDIR)):
+                print("WARNING 250 : No repetitive sequences present. Use .fa as .fa.masked")
+                ExecuteBashCommand("cp {0}/{0}.fa {0}/{1}/{0}.fa.masked".format(
+                    sGeneId,MASKDIR,FASTADIR))
+            ExecuteBashCommand("mv {0}/{1}/{0}.fa.masked {0}/{0}.fa.masked".format(
+                sGeneId,MASKDIR))
                 
-        CreateFolder("{}/{}".format(sGeneId,MASKDIR))
-        print("--repeatmasker...")
-        ExecuteBashCommand("time RepeatMasker -pa 4 -s -species mouse -dir {0}/{1} {0}/{0}.fa".format(
-            sGeneId,MASKDIR))
-        if not os.path.isfile("{0}/{1}/{0}.fa.masked".format(sGeneId,MASKDIR)):
-            print("WARNING 250 : No repetitive sequences present. Use .fa as .fa.masked")
-            ExecuteBashCommand("cp {0}/{0}.fa {0}/{1}/{0}.fa.masked".format(
-                sGeneId,MASKDIR,FASTADIR))
-        ExecuteBashCommand("mv {0}/{1}/{0}.fa.masked {0}/{0}.fa.masked".format(
-            sGeneId,MASKDIR))
+            print("Start Exonerate task...")
+            ##Megablast pre-filter
+            print("--megablast...")
+            ExecuteBashCommand("time blastn -db {1} -query {0}/{0}.fa.masked -max_target_seqs 1000000 -outfmt 5 -out {0}/{0}.megablast.xml".format(
+                sGeneId,BLASTDATABASE))
+            print("--megablast parsing...")
+            ExecuteBashCommand("time python {1} -b {0}/{0}.megablast.xml -t {0} -g {0}/{0}.gff -o {0}/{0}.megablast.tsv -e {0}/{0}.exon.txt".format(
+                sGeneId,SCRIPT2))
+            print("--extract read...")
+            ExecuteBashCommand('time python {1} -r {3} -g {4} -f {2} -s {0}/{0}.megablast.tsv -o {0}/megablast.fa'.format(
+                    sGeneId,SCRIPT3,BLASTDATABASE,READCOVER_THRESHOLD,GENECOVER_THRESHOLD))
             
-        print("Start Exonerate task...")
-        ##Megablast pre-filter
-        print("--megablast...")
-        ExecuteBashCommand("time blastn -db {1} -query {0}/{0}.fa.masked -max_target_seqs 1000000 -outfmt 5 -out {0}/{0}.megablast.xml".format(
-            sGeneId,BLASTDATABASE))
-        print("--megablast parsing...")
-        ExecuteBashCommand("time python {1} -b {0}/{0}.megablast.xml -t {0} -g {0}/{0}.gff -o {0}/{0}.megablast.tsv -e {0}/{0}.exon.txt".format(
-            sGeneId,SCRIPT2))
-        print("--extract read...")
-        ExecuteBashCommand('time python {1} -r {3} -g {4} -f {2} -s {0}/{0}.megablast.tsv -o {0}/megablast.fa'.format(
-                sGeneId,SCRIPT3,BLASTDATABASE,READCOVER_THRESHOLD,GENECOVER_THRESHOLD))
-        
-        ##Exonerate
-        print("--exonerate...")
-        ExecuteBashCommand('time exonerate --showvulgar no --showtargetgff y --model est2genome {0}/megablast.fa {0}/{0}.fa.masked > {0}/{0}.exonerate.txt'.format(
-                sGeneId))
-        print("--exonerate parsing...")
-        ExecuteBashCommand("time python {1} -x {0}/{0}.exonerate.txt -t {0} -g {0}/{0}.gff -o {0}/{0}.exonerate.tsv -e {0}/{0}.exon.txt -f {0}/megablast.fa -r {0}/{0}.fa.masked -s {0}/{0}.megablast.tsv".format(
-            sGeneId,SCRIPT2))
+            ##Exonerate
+            print("--exonerate...")
+            ExecuteBashCommand('time exonerate --showvulgar no --showtargetgff y --model est2genome {0}/megablast.fa {0}/{0}.fa.masked > {0}/{0}.exonerate.txt'.format(
+                    sGeneId))
+            print("--exonerate parsing...")
+            ExecuteBashCommand("time python {1} -x {0}/{0}.exonerate.txt -t {0} -g {0}/{0}.gff -o {0}/{0}.exonerate.tsv -e {0}/{0}.exon.txt -f {0}/megablast.fa -r {0}/{0}.fa.masked -s {0}/{0}.megablast.tsv".format(
+                sGeneId,SCRIPT2))
+                
+            ##Graph
+            print("--graph...")
+            ExecuteBashCommand("time python {1} {0}/{0}.fa {0}/{0}.exonerate.paf {0}/{0}.exonerate.png".format(
+                sGeneId,SCRIPTGRAPH))
+            FILE=open("{0}/LaunchFile.sh".format(sGeneId),"w")
+            FILE.write("time python {1} ./{0}.fa ./{0}.exonerate.paf ./{0}.exonerate.png".format(
+                sGeneId,SCRIPTGRAPH))
+            FILE.close()
             
-        ##Graph
-        print("--graph...")
-        #ExecuteBashCommand("time python {1} {0}/{0}.fa {0}/{0}.exonerate.paf {0}/{0}.exonerate.png".format(
-            #sGeneId,SCRIPTGRAPH))
-        FILE=open("{0}/LaunchFile.sh".format(sGeneId),"w")
-        FILE.write("time python {1} ./{0}.fa ./{0}.exonerate.paf ./{0}.exonerate.png".format(
-            sGeneId,SCRIPTGRAPH))
-        FILE.close()
-        
-        ##Table
-        #print("--table...")
-        #ExecuteBashCommand("time python {1} -p {0}/{0}.exonerate.paf -t {0} -g {0}/{0}.gff -o {0}/{0}.stat.tsv".format(
-            #sGeneId,SCRIPT4))
-        
-        print("WORK ON {} DONE".format(sGeneId))
+            #Table
+            print("--table...")
+            ExecuteBashCommand("time python {1} -p {0}/{0}.exonerate.paf -t {0} -g {0}/{0}.gff -o {0}/{0}.spliceSummary.tsv".format(
+                sGeneId,SCRIPT4))
+            
+            print("WORK ON {} DONE".format(sGeneId))
+        except Exception as e:
+            print("CRASH : {}".format(e))
         
     
     print("GROUP FOLDERS")

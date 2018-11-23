@@ -61,7 +61,7 @@ def WriteFile(sPath,sContent):
 #MAIN
 if __name__ == "__main__":
     ##PREDICTION - Initialization
-    oNanoporeContent=AlignedMatrixContent(sTargetId,sInputFile)
+    oNanoporeContent=AlignedMatrixContent(sTargetId,sInputFile,sOutputFile)
 
     
     
