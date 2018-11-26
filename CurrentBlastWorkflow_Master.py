@@ -172,7 +172,7 @@ def ExecuteBashCommand(scriptfile,bFirstLine=True):
         print("Bash command done")
     else:
         print(tTable[2])
-        exit("Bash command fail: {}\nScript bash : {}".format(scriptfile,sName))
+        print("Bash command fail: {}\nScript bash : {}".format(scriptfile,sName))
     
     os.remove(sName)
 

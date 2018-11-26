@@ -1697,7 +1697,6 @@ class AlignedMatrixContent():
         self.setup_globalVector()
         self.assign_blockName()
         self.assign_blockConfidence()
-        #print(self.translate_cgalcodeGrammar(self.get_globalVector()))
         
         #self.print_globalVector(4)
         #self.print_globalVector(3)
@@ -1705,17 +1704,18 @@ class AlignedMatrixContent():
         #self.print_globalVector(1)
         
         #iDebugLineIndex=1
-        #iStartDebug=13350
-        #iStopDebug=13450
-        #iStartDebug=14430
-        #iStopDebug=14475
+        iStartDebug=20926
+        iStopDebug=20934
         #print(self.get_matrix_lineName(iDebugLineIndex))
-        #print(self.get_submatrix_byLine(iDebugLineIndex,iDebugLineIndex))
-        #exit()
-        
+        ##print(self.get_submatrix_byLine(iDebugLineIndex,iDebugLineIndex))
         #print(self.get_globalVector()[iStartDebug:iStopDebug+1])
         #print(self.get_globalPopVector()[iStartDebug:iStopDebug+1])
         #print(self.get_submatrix_byCol(iStartDebug,iStopDebug)[iDebugLineIndex])
+        ##exit()
+        #print("PHASE 1")
+        #for iDebugLineIndex in range(len(self.get_matrix())):
+            #print(self.get_matrix_lineName(iDebugLineIndex))
+            #print(self.get_submatrix_byCol(iStartDebug,iStopDebug)[iDebugLineIndex])
         
         self.regroup_globalVector()  #This will modify the matrix!!
         
@@ -1723,25 +1723,29 @@ class AlignedMatrixContent():
         self.setup_globalVector()
         self.assign_blockName()
         self.assign_blockConfidence()
+        
         #print(self.get_globalVector()[iStartDebug:iStopDebug+1])
         #print(self.get_globalPopVector()[iStartDebug:iStopDebug+1])
         #print(self.get_submatrix_byCol(iStartDebug,iStopDebug)[iDebugLineIndex])
         #exit()
+        #print("PHASE 2")
+        #for iDebugLineIndex in range(len(self.get_matrix())):
+            #print(self.get_matrix_lineName(iDebugLineIndex))
+            #print(self.get_submatrix_byCol(iStartDebug,iStopDebug)[iDebugLineIndex])
         
         #print(self.get_line_BlockName_Structure(iDebugLineIndex))
         #exit()
         
-        #print(self.get_limitedBlockName())
-        #print(self.get_blockSize())
-        #print(self.get_blockCoord())
-        #print(self.get_blockPop())
+        print(self.get_limitedBlockName())
+        print(self.get_blockSize())
+        print(self.get_blockCoord())
+        print(self.get_blockPop())
         #for iLineIndex in range(len(self.get_matrix())):
             #print(self.get_matrix_lineName(iLineIndex))
-            ##print(self.translate_cgalcodeGrammar(self.get_lineName_Vector(iLineIndex),True))
             #print(self.get_line_BlockName_Structure(iLineIndex))
-            ##self.print_individualVector(self.get_lineName_Vector(iLineIndex))
-            ##print(self.get_lineName_Vector(iLineIndex))
-            ##exit()
+            #self.print_individualVector(self.get_lineName_Vector(iLineIndex))
+            #print(self.get_lineName_Vector(iLineIndex))
+            #exit()
             
         self.globalData2tsv(sOutputFile)
     
@@ -2027,28 +2031,33 @@ class AlignedMatrixContent():
             iAddIndex=None
             if self.get_globalVector(iIndex) not in ["i","="]:
                 iAddIndex=iIndex
-            if self.get_globalVector(iIndex)=="i" and self.get_globalVector(iIndex-1)=="=":
-                 iAddIndex=iIndex-1
+                #print(iIndex,iAddIndex)
+            #if self.get_globalVector(iIndex)=="i" and self.get_globalVector(iIndex-1)=="=":
+                #iAddIndex=iIndex-1
+                #print(iIndex,iAddIndex)
+            if self.get_globalVector(iIndex)=="=" and self.get_globalVector(iIndex+1)!="=":
+                iAddIndex=iIndex
+                #print(iIndex,iAddIndex)
             #if self.get_globalVector(iIndex) not in ["i","="] or (self.get_globalVector(iIndex)=="i" and self.get_globalVector(iIndex-1)=="="):
             if iAddIndex is not None:
                 if iLastIndex is None:
                     iLastIndex=iAddIndex
                     continue
                 if iLastIndex+REGROUP_GLOBALVECTOR_VALUE>=iAddIndex:
-                    #print(iAddIndex,"grouped")
+                    #print(iAddIndex,self.get_globalVector(iAddIndex),"grouped")
                     if iCurrentGroup not in dGroup2Index:
                         dGroup2Index[iCurrentGroup]=[iLastIndex,iAddIndex]
                     else:
                         dGroup2Index[iCurrentGroup].append(iAddIndex)
                 else:
-                    #print(iAddIndex,"not grouped")
+                    #print(iAddIndex,self.get_globalVector(iAddIndex),"not grouped")
                     iCurrentGroup+=1
                 iLastIndex=iAddIndex
         #print(dGroup2Index)
         
         ##ASSIGN_GROUP_VALUE
         for iGroupId in sorted(dGroup2Index):
-            print("iGroupId",dGroup2Index[iGroupId])
+            #print("iGroupId",dGroup2Index[iGroupId])
             if len(set([self.get_globalVector(X) for X in dGroup2Index[iGroupId] if self.get_globalVector(X) in [">","<"]]))!=1:
                 #exit("ERROR 1726 : different type of variation\n{}".format([self.get_globalVector(X) for X in dGroup2Index[iGroupId] if self.get_globalVector(X) in [">","<"]]))
                 print("NEAR-ERROR 1726 : different type of variation\n{}\t{}".format([self.get_globalVector(X) for X in dGroup2Index[iGroupId] if self.get_globalVector(X) in [">","<"]],dGroup2Index[iGroupId]))
@@ -2060,7 +2069,7 @@ class AlignedMatrixContent():
                 sBlockId=[self.get_globalVector(X) for X in dGroup2Index[iGroupId] if self.get_globalVector(X) not in [">","<"]][0]
             else:
                 sBlockId=sTag
-            print("sBlockId",sBlockId,"sTag",sTag)
+            #print("sBlockId",sBlockId,"sTag",sTag)
             iMajorityIndex=None
             iMajorityPop=None
             tEqualityIndex=[]
@@ -2148,11 +2157,11 @@ class AlignedMatrixContent():
                             bHaveNegativeValue=True
                             iNegativeValue=tMatrix[iLineIndex][iColIndex]
                             iNegativeValueIndex=iColIndex
-                            tMatrix[iLineIndex][iColIndex]=0 # turn it to 0 now
-                            break
+                            #tMatrix[iLineIndex][iColIndex]=0 # turn it to 0 now
+                            #break
                             #print(">",iNegativeValue,iNegativeValueIndex)
                     #print("C>>>",tMatrix[iLineIndex][iStartColIndex-2:iStopColIndex+2])
-                    for iColIndex in range(iStartColIndex,iStopColIndex+1):
+                    for iColIndex in range(iStartColIndex-1,iStopColIndex+1): #same reason
                         if iColIndex<iMajorityIndex:
                             tMatrix[iLineIndex][iColIndex]=0                                
                         if iColIndex>=iMajorityIndex:
@@ -2183,13 +2192,13 @@ class AlignedMatrixContent():
                     iNegativeValue=None
                     iNegativeValueIndex=None
                     #print("B'>>>",tMatrix[iLineIndex][iStartColIndex-2:iStopColIndex+2])
-                    for iColIndex in range(iStartColIndex,iStopColIndex+1):
+                    for iColIndex in range(iStartColIndex,iStopColIndex+2): #+2, because negative signal is AFTER the grouping windows
                         if tMatrix[iLineIndex][iColIndex]<0:
                             bHaveNegativeValue=True
                             iNegativeValue=tMatrix[iLineIndex][iColIndex]
                             iNegativeValueIndex=iColIndex
                     #print("C'>>>",tMatrix[iLineIndex][iStartColIndex-2:iStopColIndex+2])
-                    for iColIndex in range(iStartColIndex,iStopColIndex+1):
+                    for iColIndex in range(iStartColIndex,iStopColIndex+2): #+2, same reason
                         if iColIndex<=iMajorityIndex:
                             tMatrix[iLineIndex][iColIndex]=1
                         if iColIndex>iMajorityIndex:
@@ -2496,6 +2505,7 @@ class AlignedMatrixContent():
             for iDbIndex in range(len(dTr2Data[sTrId])):
                 dbKey=sorted(dTr2Data[sTrId])[iDbIndex]
                 #print(dbKey)
+                iReadSize=dTr2Data[sTrId][dbKey]["ReadSize"]
                 iGeneStart=dTr2Data[sTrId][dbKey]["GeneStart"]
                 iGeneStop=dTr2Data[sTrId][dbKey]["GeneStop"]
                 iReadStart=dTr2Data[sTrId][dbKey]["ReadStart"]
@@ -2530,10 +2540,38 @@ class AlignedMatrixContent():
                                 tCurrentVector[iGeneStop+1]=iDelta
                             except IndexError:
                                 tCurrentVector[iGeneStop]=iDelta-1
-                elif iDbIndex==len(dTr2Data[sTrId])-1:
-                    iReadSize=dTr2Data[sTrId][dbKey]["ReadSize"]
+                #elif iDbIndex==len(dTr2Data[sTrId])-1:
+                    #iReadSize=dTr2Data[sTrId][dbKey]["ReadSize"]
+                    #if iReadStop!=iReadSize:
+                        #iDelta=-(iReadSize-iReadStop-1)
+                        #print("Warning : {}\n\tSoft gap at the {} of the gene ({}-{}: {}nt gap)".format(sTrId,sStop,iReadStop,iReadSize,iDelta))
+                        ##print("'-> corresponding to {} {} on the gene".format(iGeneStart,iGeneStop))
+                        #if sStrand=="+":
+                            #try:
+                                #tCurrentVector[iGeneStop+1]=iDelta
+                            #except IndexError:
+                                #tCurrentVector[iGeneStop]=iDelta+1
+                        #else:
+                            #try:
+                                #tCurrentVector[iGeneStart-1]=iDelta
+                            #except IndexError:
+                                #tCurrentVector[iGeneStart]=iDelta-1
+                else:
+                    if iPreviousReadStop+1<iReadStart and sStrand=="+":
+                        iDelta=-(iReadStart-iPreviousReadStop-1)
+                        print("Warning : {}\n\tdiscontinue alignment ({}-{}: {}nt gap)".format(sTrId,iPreviousReadStop,iReadStart,iDelta))
+                        #print("'-> corresponding to {} {} on the gene".format(iPreviousGeneStop,iGeneStart))
+                        tCurrentVector[iPreviousGeneStop+1]=iDelta
+                        tCurrentVector[iGeneStart-1]=iDelta
+                    if iPreviousReadStop+1<iReadStart and sStrand!="+":
+                        iDelta=-(iReadStart-iPreviousReadStop-1)
+                        print("Warning : {}\n\tdiscontinue alignment ({}-{}: {}nt gap)".format(sTrId,iPreviousReadStop,iReadStart,iDelta))
+                        #print("'-> corresponding to {} {} on the gene".format(iGeneStop,iPreviousGeneStart))
+                        tCurrentVector[iPreviousGeneStart-1]=iDelta
+                        tCurrentVector[iGeneStop+1]=iDelta
+                if iDbIndex==len(dTr2Data[sTrId])-1:
                     if iReadStop!=iReadSize:
-                        iDelta=-(iReadSize-iReadStop)
+                        iDelta=-(iReadSize-iReadStop-1)
                         print("Warning : {}\n\tSoft gap at the {} of the gene ({}-{}: {}nt gap)".format(sTrId,sStop,iReadStop,iReadSize,iDelta))
                         #print("'-> corresponding to {} {} on the gene".format(iGeneStart,iGeneStop))
                         if sStrand=="+":
@@ -2546,17 +2584,6 @@ class AlignedMatrixContent():
                                 tCurrentVector[iGeneStart-1]=iDelta
                             except IndexError:
                                 tCurrentVector[iGeneStart]=iDelta-1
-                else:
-                    if iPreviousReadStop+1<iReadStart:
-                        iDelta=-(iReadStart-iPreviousReadStop)
-                        print("Warning : {}\n\tdiscontinue alignment ({}-{}: {}nt gap)".format(sTrId,iPreviousReadStop,iReadStart,iDelta))
-                        #print("'-> corresponding to {} {} on the gene".format(iGeneStart,iGeneStop))
-                        if sStrand=="+":
-                            tCurrentVector[iPreviousGeneStop+1]=iDelta
-                            tCurrentVector[iGeneStart-1]=iDelta
-                        else:
-                            tCurrentVector[iPreviousGeneStart+1]=iDelta
-                            tCurrentVector[iGeneStop-1]=iDelta
                 iPreviousReadStop=iReadStop
                 iPreviousGeneStop=iGeneStop
                 iPreviousReadStart=iReadStart
