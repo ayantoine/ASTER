@@ -152,10 +152,11 @@ if __name__ == "__main__":
     elif iTool==2:
         sTool="Exonerate"
         oFileContent=ExonerateContent(sInputFile,sRefFile,sFastaFile,dRead2Strand)
-        #oFileContent.purge_alignList(["ch69_read19500_template_pass_BYK_CB_ONT_1_FAF04998_A"])
-        #oFileContent.describe_AllHsp()
+        oFileContent.purge_alignList(["ch27_read13167_template_pass_BYK_CB_ONT_1_FAF04998_A"])
+        oFileContent.describe_AllHsp()
+        oFileContent.check_colinearity()
         oFileContent.check_divergence()
-        #oFileContent.describe_AllHsp()
+        oFileContent.describe_AllHsp()
     print("{} length : {}nt".format(oFileContent.query_id,oFileContent.query_size))
     print("{} associated reads : {}".format(sTool,len(oFileContent.align_list)))
     ###TSV Ref2Read coord

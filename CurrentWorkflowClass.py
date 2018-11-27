@@ -256,6 +256,67 @@ class ToolContent:
                 sContent+="\t".join(["{}"]*len(tFormatArgs)).format(*tFormatArgs)
                 sContent+="\n"
         return sContent
+    
+    
+    """
+    Order of Hsp on read must fit order of Hsp on gene
+    If not, try to remove the minority ?
+    """
+    def check_colinearity(self):
+        for oAlignContent in self.get_alignList():
+            tHspList=oAlignContent.get_hspList()
+            tSortedHspList=sorted(tHspList,key=lambda x: x.sbjct_start)
+            while True:
+                tRemoveHsp=[]
+                tConfidenceList=[]
+                for iCurrentHspIndex in range(len(tHspList)):
+                    oCurrentHsp=tHspList[iCurrentHspIndex]
+                    iCurrentGeneStart=oCurrentHsp.query_start
+                    iCurrentGeneStop=oCurrentHsp.query_end
+                    iQueryStrand="+"
+                    if iCurrentGeneStart>iCurrentGeneStop:
+                        iQueryStrand="-"
+                    iCurrentConfidence=0
+                    for iAnotherHspIndex in range(len(tHspList)):
+                        oAnotherHsp=tHspList[iAnotherHspIndex]
+                        iAnotherGeneStart=oAnotherHsp.query_start
+                        iAnotherGeneStop=oAnotherHsp.query_end
+                        
+                        if iCurrentHspIndex==iAnotherHspIndex:
+                            continue
+                        elif iCurrentHspIndex>iAnotherHspIndex:  #Another is before Current
+                            if iCurrentGeneStart>iAnotherGeneStart and iQueryStrand=="+":
+                                iCurrentConfidence+=1
+                            elif iCurrentGeneStart<iAnotherGeneStart and iQueryStrand=="-":
+                                iCurrentConfidence+=1
+                            else:
+                                iCurrentConfidence+=-1
+                        elif iCurrentHspIndex<iAnotherHspIndex:  #Another is after Current
+                            if iCurrentGeneStart<iAnotherGeneStart and iQueryStrand=="+":
+                                iCurrentConfidence+=1
+                            elif iCurrentGeneStart>iAnotherGeneStart and iQueryStrand=="-":
+                                iCurrentConfidence+=1
+                            else:
+                                iCurrentConfidence+=-1
+                    tConfidenceList.append(iCurrentConfidence)
+                print("tConfidenceList",tConfidenceList)
+                        
+                        
+
+
+
+                    #if len(tRemoveHsp)!=0:
+                        #break
+                if len(tRemoveHsp)==0:
+                    break
+                else:
+                    print("WARNING : {} reject {} Hsp".format(oAlignContent.get_id(),len(tRemoveHsp)))
+                    #for oHsp in tRemoveHsp:
+                        #print(oHsp.sbjct_start,oHsp.sbjct_end,len(oHsp.sbjct.replace("-","")))
+                    tHspList=[X for X in tHspList if X not in tRemoveHsp]
+                    if len(tHspList)<2:
+                        break
+            oAlignContent.set_hspList(tHspList)
                     
     """
     Two Hsp coord that overlap on the Read must overlap on the Gene
@@ -1703,19 +1764,21 @@ class AlignedMatrixContent():
         #self.print_globalVector(2)
         #self.print_globalVector(1)
         
-        #iDebugLineIndex=1
-        iStartDebug=20926
-        iStopDebug=20934
-        #print(self.get_matrix_lineName(iDebugLineIndex))
+        iDebugLineIndex=40
+        iStartDebug=2063
+        iStopDebug=2068
+        print(self.get_matrix_lineName(iDebugLineIndex))
         ##print(self.get_submatrix_byLine(iDebugLineIndex,iDebugLineIndex))
         #print(self.get_globalVector()[iStartDebug:iStopDebug+1])
         #print(self.get_globalPopVector()[iStartDebug:iStopDebug+1])
-        #print(self.get_submatrix_byCol(iStartDebug,iStopDebug)[iDebugLineIndex])
+        print(self.get_submatrix_byCol(iStartDebug,iStopDebug)[iDebugLineIndex])
         ##exit()
         #print("PHASE 1")
         #for iDebugLineIndex in range(len(self.get_matrix())):
+            #print(iDebugLineIndex,self.get_matrix_lineName(iDebugLineIndex))
             #print(self.get_matrix_lineName(iDebugLineIndex))
             #print(self.get_submatrix_byCol(iStartDebug,iStopDebug)[iDebugLineIndex])
+        #exit()
         
         self.regroup_globalVector()  #This will modify the matrix!!
         
@@ -1724,9 +1787,10 @@ class AlignedMatrixContent():
         self.assign_blockName()
         self.assign_blockConfidence()
         
+        print("------")
         #print(self.get_globalVector()[iStartDebug:iStopDebug+1])
         #print(self.get_globalPopVector()[iStartDebug:iStopDebug+1])
-        #print(self.get_submatrix_byCol(iStartDebug,iStopDebug)[iDebugLineIndex])
+        print(self.get_submatrix_byCol(iStartDebug,iStopDebug)[iDebugLineIndex])
         #exit()
         #print("PHASE 2")
         #for iDebugLineIndex in range(len(self.get_matrix())):
@@ -2494,7 +2558,7 @@ class AlignedMatrixContent():
         tMatrix=[]
         tBaseVector=[0]*iSize
         for sTrId in sorted(dTr2Data):
-            #print(sTrId)
+            print(sTrId)
             tCurrentVector=list(tBaseVector)
             self.set_matrix_lineName(sTrId,True)
             iPreviousReadStop=None
@@ -2504,7 +2568,7 @@ class AlignedMatrixContent():
             iLastIndex=None
             for iDbIndex in range(len(dTr2Data[sTrId])):
                 dbKey=sorted(dTr2Data[sTrId])[iDbIndex]
-                #print(dbKey)
+                print(dbKey)
                 iReadSize=dTr2Data[sTrId][dbKey]["ReadSize"]
                 iGeneStart=dTr2Data[sTrId][dbKey]["GeneStart"]
                 iGeneStop=dTr2Data[sTrId][dbKey]["GeneStop"]
@@ -2517,7 +2581,7 @@ class AlignedMatrixContent():
                 else:
                     sStart="end"
                     sStop="start"
-                #print(iGeneStart,iGeneStop,iReadStart,iReadStop,sStrand)
+                print(iGeneStart,iGeneStop,iReadStart,iReadStop,sStrand)
                 if iGeneStart>iGeneStop:
                     exit("ERROR L1705 : iStart>iStop")
                 for iIndex in range(iGeneStart,iGeneStop+1):
@@ -2529,7 +2593,7 @@ class AlignedMatrixContent():
                     if iReadStart!=0:
                         iDelta=-(iReadStart-1)
                         print("Warning : {}\n\tSoft gap at the {} of the gene ({}-{}: {}nt gap)".format(sTrId,sStart,1,iReadStart,iDelta))
-                        #print("'-> corresponding to {} {} on the gene".format(iGeneStart,iGeneStop))
+                        print("'-> corresponding to {} {} on the gene".format(iGeneStart,iGeneStop))
                         if sStrand=="+":
                             try:
                                 tCurrentVector[iGeneStart-1]=iDelta
@@ -2540,40 +2604,24 @@ class AlignedMatrixContent():
                                 tCurrentVector[iGeneStop+1]=iDelta
                             except IndexError:
                                 tCurrentVector[iGeneStop]=iDelta-1
-                #elif iDbIndex==len(dTr2Data[sTrId])-1:
-                    #iReadSize=dTr2Data[sTrId][dbKey]["ReadSize"]
-                    #if iReadStop!=iReadSize:
-                        #iDelta=-(iReadSize-iReadStop-1)
-                        #print("Warning : {}\n\tSoft gap at the {} of the gene ({}-{}: {}nt gap)".format(sTrId,sStop,iReadStop,iReadSize,iDelta))
-                        ##print("'-> corresponding to {} {} on the gene".format(iGeneStart,iGeneStop))
-                        #if sStrand=="+":
-                            #try:
-                                #tCurrentVector[iGeneStop+1]=iDelta
-                            #except IndexError:
-                                #tCurrentVector[iGeneStop]=iDelta+1
-                        #else:
-                            #try:
-                                #tCurrentVector[iGeneStart-1]=iDelta
-                            #except IndexError:
-                                #tCurrentVector[iGeneStart]=iDelta-1
                 else:
                     if iPreviousReadStop+1<iReadStart and sStrand=="+":
                         iDelta=-(iReadStart-iPreviousReadStop-1)
                         print("Warning : {}\n\tdiscontinue alignment ({}-{}: {}nt gap)".format(sTrId,iPreviousReadStop,iReadStart,iDelta))
-                        #print("'-> corresponding to {} {} on the gene".format(iPreviousGeneStop,iGeneStart))
+                        print("'-> corresponding to {} {} on the gene, strand {}".format(iPreviousGeneStop,iGeneStart,sStrand))
                         tCurrentVector[iPreviousGeneStop+1]=iDelta
                         tCurrentVector[iGeneStart-1]=iDelta
                     if iPreviousReadStop+1<iReadStart and sStrand!="+":
                         iDelta=-(iReadStart-iPreviousReadStop-1)
                         print("Warning : {}\n\tdiscontinue alignment ({}-{}: {}nt gap)".format(sTrId,iPreviousReadStop,iReadStart,iDelta))
-                        #print("'-> corresponding to {} {} on the gene".format(iGeneStop,iPreviousGeneStart))
+                        print("'-> corresponding to {} {} on the gene, strand {}".format(iGeneStop,iPreviousGeneStart,sStrand))
                         tCurrentVector[iPreviousGeneStart-1]=iDelta
                         tCurrentVector[iGeneStop+1]=iDelta
                 if iDbIndex==len(dTr2Data[sTrId])-1:
                     if iReadStop!=iReadSize:
                         iDelta=-(iReadSize-iReadStop-1)
                         print("Warning : {}\n\tSoft gap at the {} of the gene ({}-{}: {}nt gap)".format(sTrId,sStop,iReadStop,iReadSize,iDelta))
-                        #print("'-> corresponding to {} {} on the gene".format(iGeneStart,iGeneStop))
+                        print("'-> corresponding to {} {} on the gene".format(iGeneStart,iGeneStop))
                         if sStrand=="+":
                             try:
                                 tCurrentVector[iGeneStop+1]=iDelta
