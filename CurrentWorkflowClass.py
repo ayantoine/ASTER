@@ -2558,9 +2558,12 @@ class AlignedMatrixContent():
         tMatrix=[]
         tBaseVector=[0]*iSize
         for sTrId in sorted(dTr2Data):
-            print(sTrId)
+            print("~~~~~~~~~~~~~~~~~")
+            print(sTrId,dTr2Data[sTrId][sorted(dTr2Data[sTrId])[0]]["Strand"])
+            tRemoveDb=[]
             tCurrentVector=list(tBaseVector)
-            self.set_matrix_lineName(sTrId,True)
+            ## Step 1 : remove db if not colinear with neighbours
+            ## i.e. Coord order on the read must respect coord order on the gene
             for iDbIndex in range(len(dTr2Data[sTrId])):
                 dbCurrentKey=sorted(dTr2Data[sTrId])[iDbIndex]
                 iCurrentReadSize=dTr2Data[sTrId][dbCurrentKey]["ReadSize"]
@@ -2568,9 +2571,11 @@ class AlignedMatrixContent():
                 iCurrentGeneStop=dTr2Data[sTrId][dbCurrentKey]["GeneStop"]
                 iCurrentReadStart=dTr2Data[sTrId][dbCurrentKey]["ReadStart"]
                 iCurrentReadStop=dTr2Data[sTrId][dbCurrentKey]["ReadStop"]
-                sStrand=dTr2Data[sTrId][dbKey]["Strand"]
+                sStrand=dTr2Data[sTrId][dbCurrentKey]["Strand"]
                 
-                if dbKey!=0:
+                bIsNotFirst=iDbIndex!=0
+                bHavePrevious=iDbIndex-1 not in tRemoveDb
+                if bIsNotFirst and bHavePrevious:
                     dbPreviousKey=sorted(dTr2Data[sTrId])[iDbIndex-1]
                     iPreviousReadSize=dTr2Data[sTrId][dbPreviousKey]["ReadSize"]
                     iPreviousGeneStart=dTr2Data[sTrId][dbPreviousKey]["GeneStart"]
@@ -2585,7 +2590,9 @@ class AlignedMatrixContent():
                     iPreviousReadStart=None
                     iPreviousReadStop=None
                 
-                if dbKey!=len(dTr2Data[sTrId])-1:
+                bIsNotLast=iDbIndex!=len(dTr2Data[sTrId])-1
+                bHaveNext=iDbIndex+1 not in tRemoveDb
+                if bIsNotLast and bHaveNext:
                     dbNextKey=sorted(dTr2Data[sTrId])[iDbIndex+1]
                     iNextReadSize=dTr2Data[sTrId][dbNextKey]["ReadSize"]
                     iNextGeneStart=dTr2Data[sTrId][dbNextKey]["GeneStart"]
@@ -2599,154 +2606,193 @@ class AlignedMatrixContent():
                     iNextGeneStop=None
                     iNextReadStart=None
                     iNextReadStop=None
+                
+                print("------------")
+                print("ReadSize",iCurrentReadSize)
+                print("dbCurrentKey",iCurrentReadStart,iCurrentReadStop,iCurrentGeneStart,iCurrentGeneStop)
+                print("dbPreviousKey",iPreviousReadStart,iPreviousReadStop,iPreviousGeneStart,iPreviousGeneStop)
+                print("dbNextKey",iNextReadStart,iNextReadStop,iNextGeneStart,iNextGeneStop)
+                
+                bPreviousOrder=True
+                bNextOrder=True
+                    
+                if dbPreviousKey is not None:
+                    bPreviousOrder=False
+                    if iPreviousReadStop<iCurrentReadStart:
+                        if iPreviousGeneStop<iCurrentGeneStart and sStrand=="+":
+                            bPreviousOrder=True
+                        elif iPreviousGeneStart>iCurrentGeneStop and sStrand=="-":
+                            bPreviousOrder=True
+                    elif iPreviousReadStop>=iCurrentReadStart:
+                        ## Overlapping alignment on the Read. Not possible ?
+                        exit("Error 2614 : overlapping alignment on the Read")
+                    else:
+                        exit("FATAL 2616 : This line must never happend")
+                    
+                if dbNextKey is not None:
+                    bNextOrder=False
+                    if iCurrentReadStop<iNextReadStart:                    
+                        if iCurrentGeneStop<iNextGeneStart and sStrand=="+":
+                            bNextOrder=True
+                        elif iCurrentGeneStart>iNextGeneStop and sStrand=="-":
+                            bNextOrder=True
+                    elif iCurrentReadStop>=iNextReadStart:
+                        ## Overlapping alignment on the Read. Not possible ?
+                        exit("Error 2626 : overlapping alignment on the Read")
+                    else:
+                        exit("FATAL 2628 : This line must never happend")
+                
+                if bNextOrder and bPreviousOrder:
+                    pass
+                else:
+                    tRemoveDb.append(dbCurrentKey)
+                print("tRemoveDb",tRemoveDb)
+            
+            ## Step 2 : remove bad db
+            for dbBadDb in tRemoveDb:
+                del dTr2Data[sTrId][dbBadDb]
+                
+            ## Step 3 : fill the vector
+            for iDbIndex in range(len(dTr2Data[sTrId])):
+                dbCurrentKey=sorted(dTr2Data[sTrId])[iDbIndex]
+                iCurrentReadSize=dTr2Data[sTrId][dbCurrentKey]["ReadSize"]
+                iCurrentReadStart=dTr2Data[sTrId][dbCurrentKey]["ReadStart"]
+                iCurrentReadStop=dTr2Data[sTrId][dbCurrentKey]["ReadStop"]
+                iCurrentGeneSize=dTr2Data[sTrId][dbCurrentKey]["GeneSize"]
+                iCurrentGeneStart=dTr2Data[sTrId][dbCurrentKey]["GeneStart"]
+                iCurrentGeneStop=dTr2Data[sTrId][dbCurrentKey]["GeneStop"]
+                sStrand=dTr2Data[sTrId][dbCurrentKey]["Strand"]
+                
+                #print("------------")
+                #print("ReadSize",iCurrentReadSize,"GeneSize",iCurrentGeneSize)
+                #print("dbCurrentKey",iCurrentReadStart,iCurrentReadStop,iCurrentGeneStart,iCurrentGeneStop)
+                
+                for iIndex in range(iCurrentGeneStart,iCurrentGeneStop+1):
+                    if iIndex<iCurrentGeneSize:
+                        tCurrentVector[iIndex]=1
+                    else:
+                        exit("Error 2257 : iIndex>=iCurrentGeneSize")
+                
+                bIsNotFirst=iDbIndex!=0
+                bHavePrevious=iDbIndex-1 not in tRemoveDb
+                if bIsNotFirst and bHavePrevious:
+                    dbPreviousKey=sorted(dTr2Data[sTrId])[iDbIndex-1]
+                    iPreviousReadSize=dTr2Data[sTrId][dbPreviousKey]["ReadSize"]
+                    iPreviousGeneStart=dTr2Data[sTrId][dbPreviousKey]["GeneStart"]
+                    iPreviousGeneStop=dTr2Data[sTrId][dbPreviousKey]["GeneStop"]
+                    iPreviousReadStart=dTr2Data[sTrId][dbPreviousKey]["ReadStart"]
+                    iPreviousReadStop=dTr2Data[sTrId][dbPreviousKey]["ReadStop"]
+                else:
+                    dbPreviousKey=None
+                    iPreviousReadStart=0
+                    iPreviousReadStop=0
+                    iPreviousGeneStart=None
+                    iPreviousGeneStop=None
+                
+                bIsNotLast=iDbIndex!=len(dTr2Data[sTrId])-1
+                bHaveNext=iDbIndex+1 not in tRemoveDb
+                if bIsNotLast and bHaveNext:
+                    dbNextKey=sorted(dTr2Data[sTrId])[iDbIndex+1]
+                    iNextReadSize=dTr2Data[sTrId][dbNextKey]["ReadSize"]
+                    iNextGeneStart=dTr2Data[sTrId][dbNextKey]["GeneStart"]
+                    iNextGeneStop=dTr2Data[sTrId][dbNextKey]["GeneStop"]
+                    iNextReadStart=dTr2Data[sTrId][dbNextKey]["ReadStart"]
+                    iNextReadStop=dTr2Data[sTrId][dbNextKey]["ReadStop"]
+                else:
+                    dbNextKey=None
+                    iNextReadStart=iCurrentReadSize
+                    iNextReadStop=iCurrentReadSize
+                    iNextGeneStart=None
+                    iNextGeneStop=None
                     
                 bPreviousGap=False
                 bNextGap=False
-                    
-                if sStrand=="+":
-                    if dbPreviousKey is not None:
-                        if iPreviousReadStop+1==iCurrentReadStart:
-                            ## Contigous alignment on the Read, do nothing
-                            bPreviousGap=False
-                        elif iPreviousReadStop+1<iCurrentReadStart:
-                            ## Uncontigous alignment on the Read, there is a gap
-                            bPreviousGap=True
-                            iPreviousDelta=-(iCurrentReadStart-iPreviousReadStop-1)
-                        elif iPreviousReadStop+1>iCurrentReadStart:
-                            ## Overlapping alignment on the Read. Not possible ?
-                            exit("Error 2612 : overlapping alignment on the Read")
-                        else:
-                            exit("FATAL 2614 : This line must never happend")
-                    
-                    if dbNextKey is not None:
-                        if iCurrentReadStop+1==iNextReadStart:
-                            ## Contigous alignment on the Read, do nothing
-                            bNextGap=False
-                        elif iCurrentReadStop+1<iNextReadStart:
-                            ## Uncontigous alignment on the Read, there is a gap
-                            bNextGap=True
-                            iNextDelta=-(iNextReadStart-iCurrentReadStop-1)
-                        elif iCurrentReadStop+1>iNextReadStart:
-                            ## Overlapping alignment on the Read. Not possible ?
-                            exit("Error 2624 : overlapping alignment on the Read")
-                        else:
-                            exit("FATAL 2626 : This line must never happend")
-                    
-                    ## If there is gap, check colinearity : there must not be data (1) on the vector
-                    if bPreviousGap and bNextGap:
-                        bRemoveCurrent=False
-                        if bPreviousGap and bNextGap:
-                            if 1 in tCurrentVector[iPreviousGeneStop+1:iNextGeneStart]:
-                                bRemoveCurrent=True
-                        elif bPreviousGap and not bNextGap:
-                            if 1 in tCurrentVector[iPreviousGeneStop+1:iCurrentGeneStart]:
-                                bRemoveCurrent=True
-                        elif not bPreviousGap and bNextGap:
-                            if 1 in tCurrentVector[iCurrentGeneStop+1:iNextGeneStart]:
-                                bRemoveCurrent=True
-                        if bRemoveCurrent:
-                            print("Warning : alignment {} is not colinear and will be removed".format(dbCurrentKey))
-                            continue
-                    
-                    ## Store Alignment
-                    for iIndex in range(iGeneStart,iGeneStop+1):
-                        if iIndex<iSize:
-                            tCurrentVector[iIndex]=1
-                        else:
-                            exit("Error 2257 : iIndex>=iSize")
-                    
-                    ## Keep gap
-                    if bPreviousGap:
-                        tCurrentVector[iPreviousGeneStop+1]=iPreviousDelta
-                        tCurrentVector[iCurrentGeneStart-1]=iPreviousDelta
-                    if bNextGap:
-                        tCurrentVector[iCurrentGeneStop+1]=iNextDelta
-                        tCurrentVector[iNextGeneStart-1]=iNextDelta
                 
-                if sStrand=="-":
-                    
-                
-                
-                
-                print(dbKey)
-                iReadSize=dTr2Data[sTrId][dbKey]["ReadSize"]
-                iGeneStart=dTr2Data[sTrId][dbKey]["GeneStart"]
-                iGeneStop=dTr2Data[sTrId][dbKey]["GeneStop"]
-                iReadStart=dTr2Data[sTrId][dbKey]["ReadStart"]
-                iReadStop=dTr2Data[sTrId][dbKey]["ReadStop"]
-                sStrand=dTr2Data[sTrId][dbKey]["Strand"]
-                if sStrand=="+":
-                    sStart="start"
-                    sStop="end"
+                print("------------")
+                print("ReadSize",iCurrentReadSize,"sStrand",sStrand)
+                print("dbCurrentKey",iCurrentReadStart,iCurrentReadStop,iCurrentGeneStart,iCurrentGeneStop)
+                print("dbPreviousKey",iPreviousReadStart,iPreviousReadStop,iPreviousGeneStart,iPreviousGeneStop)
+                print("dbNextKey",iNextReadStart,iNextReadStop,iNextGeneStart,iNextGeneStop)
+                                    
+                if iPreviousReadStop+1==iCurrentReadStart:
+                    ## Contigous alignment on the read, do nothing
+                    pass
+                elif iPreviousReadStop<iCurrentReadStart:
+                    ## There is a gap
+                    bPreviousGap=True
+                    iPreviousGap=-(iCurrentReadStart-iPreviousReadStop-1)
+                    #print("iPreviousGap",iPreviousGap)
+                elif dbPreviousKey is None:
+                    pass
+                elif iPreviousReadStop>iCurrentReadStart:
+                    ## Overlapping alignment on the Read. Not possible ?
+                    exit("Error 2695 : overlapping alignment on the Read")
                 else:
-                    sStart="end"
-                    sStop="start"
-                print(iGeneStart,iGeneStop,iReadStart,iReadStop,sStrand)
-                if iGeneStart>iGeneStop:
-                    exit("ERROR L1705 : iStart>iStop")
-                #for iIndex in range(iGeneStart,iGeneStop+1):
-                    #if iIndex<iSize:
-                        #tCurrentVector[iIndex]=1
-                    #else:
-                        #exit("ERROR L2257 : iIndex>=iSize")
-                if iDbIndex==0:
-                    if iReadStart!=0:
-                        iDelta=-(iReadStart-1)
-                        print("Warning : {}\n\tSoft gap at the {} of the gene ({}-{}: {}nt gap)".format(sTrId,sStart,1,iReadStart,iDelta))
-                        print("'-> corresponding to {} {} on the gene".format(iGeneStart,iGeneStop))
-                        if sStrand=="+":
-                            try:
-                                tCurrentVector[iGeneStart-1]=iDelta
-                            except IndexError:
-                                tCurrentVector[iGeneStart]=iDelta+1
-                        else:
-                            try:
-                                tCurrentVector[iGeneStop+1]=iDelta
-                            except IndexError:
-                                tCurrentVector[iGeneStop]=iDelta-1
+                    exit("FATAL 2697 : This line must never happend")
+                
+                if iCurrentReadStop+1==iNextReadStart:
+                    ## Contigous alignment on the read, do nothing
+                    pass
+                elif iCurrentReadStop<iNextReadStart:
+                    ## There is a gap
+                    bNextGap=True
+                    iNextGap=-(iNextReadStart-iCurrentReadStop-1)
+                    #print("iNextGap",iNextGap)
+                elif dbNextKey is None:
+                    pass
+                elif iCurrentReadStop>iNextReadStart:
+                    ## Overlapping alignment on the Read. Not possible ?
+                    exit("Error 2709 : overlapping alignment on the Read")
                 else:
-                    if iPreviousReadStop+1<iReadStart and sStrand=="+":
-                        iDelta=-(iReadStart-iPreviousReadStop-1)
-                        print("Warning : {}\n\tdiscontinue alignment ({}-{}: {}nt gap)".format(sTrId,iPreviousReadStop,iReadStart,iDelta))
-                        print("'-> corresponding to {} {} on the gene, strand {}".format(iPreviousGeneStop,iGeneStart,sStrand))
-                        tCurrentVector[iPreviousGeneStop+1]=iDelta
-                        tCurrentVector[iGeneStart-1]=iDelta
-                    if iPreviousReadStop+1<iReadStart and sStrand!="+":
-                        iDelta=-(iReadStart-iPreviousReadStop-1)
-                        print("Warning : {}\n\tdiscontinue alignment ({}-{}: {}nt gap)".format(sTrId,iPreviousReadStop,iReadStart,iDelta))
-                        print("'-> corresponding to {} {} on the gene, strand {}".format(iGeneStop,iPreviousGeneStart,sStrand))
-                        tCurrentVector[iPreviousGeneStart-1]=iDelta
-                        tCurrentVector[iGeneStop+1]=iDelta
-                if iDbIndex==len(dTr2Data[sTrId])-1:
-                    if iReadStop!=iReadSize:
-                        iDelta=-(iReadSize-iReadStop-1)
-                        print("Warning : {}\n\tSoft gap at the {} of the gene ({}-{}: {}nt gap)".format(sTrId,sStop,iReadStop,iReadSize,iDelta))
-                        print("'-> corresponding to {} {} on the gene".format(iGeneStart,iGeneStop))
-                        if sStrand=="+":
-                            try:
-                                tCurrentVector[iGeneStop+1]=iDelta
-                            except IndexError:
-                                tCurrentVector[iGeneStop]=iDelta+1
+                    exit("FATAL 2710 : This line must never happend")
+                
+                if bPreviousGap: 
+                    if sStrand=="+":
+                        if iCurrentGeneStart-1>=0:
+                            tCurrentVector[iCurrentGeneStart-1]=iPreviousGap
                         else:
-                            try:
-                                tCurrentVector[iGeneStart-1]=iDelta
-                            except IndexError:
-                                tCurrentVector[iGeneStart]=iDelta-1
-                for iIndex in range(iGeneStart,iGeneStop+1):
-                    if iIndex<iSize:
-                        if tCurrentVector[iIndex]==0:
-                            tCurrentVector[iIndex]=1
+                            tCurrentVector[0]=iPreviousGap+1
+                        #iCurrentTargetIndex=max(iCurrentGeneStart-1,0)
+                        ##print(iCurrentTargetIndex)
+                        #tCurrentVector[iCurrentTargetIndex]=iPreviousGap
+                        if dbPreviousKey is not None:
+                            tCurrentVector[iPreviousGeneStop+1]=iPreviousGap
                     else:
-                        exit("ERROR L2640 : iIndex>=iSize")
-                iPreviousReadStop=iReadStop
-                iPreviousGeneStop=iGeneStop
-                iPreviousReadStart=iReadStart
-                iPreviousGeneStart=iGeneStart
-                iLastIndex=iIndex
-            #print(tCurrentVector)
+                        if iCurrentGeneStop+1<=iCurrentGeneSize-1:
+                            tCurrentVector[iCurrentGeneStop+1]=iPreviousGap
+                        else:
+                            tCurrentVector[iCurrentGeneSize-1]=iPreviousGap+1
+                        #iCurrentTargetIndex=min(iCurrentGeneStop+1,iCurrentGeneSize-1)
+                        ##print(iCurrentTargetIndex)
+                        #tCurrentVector[iCurrentTargetIndex]=iPreviousGap
+                        if dbPreviousKey is not None:
+                            tCurrentVector[iPreviousGeneStart-1]=iPreviousGap
+                
+                if bNextGap: 
+                    if sStrand=="+":
+                        if iCurrentGeneStop+1<=iCurrentGeneSize-1:
+                            tCurrentVector[iCurrentGeneStop+1]=iNextGap
+                        else:
+                            tCurrentVector[iCurrentGeneSize-1]=iNextGap-1
+                        #iCurrentTargetIndex=min(iCurrentGeneStop+1,iCurrentGeneSize-1)
+                        ##print(iCurrentTargetIndex)
+                        #tCurrentVector[iCurrentTargetIndex]=iNextGap
+                        if dbNextKey is not None:
+                            tCurrentVector[iNextGeneStart-1]=iNextGap
+                    else:
+                        if iCurrentGeneStart-1>=0:
+                            tCurrentVector[iCurrentGeneStart-1]=iNextGap
+                        else:
+                            tCurrentVector[0]=iNextGap-1
+                        #iCurrentTargetIndex=max(iCurrentGeneStart-1,0)
+                        ##print(iCurrentTargetIndex)
+                        #tCurrentVector[iCurrentTargetIndex]=iNextGap
+                        if dbNextKey is not None:
+                            tCurrentVector[iNextGeneStop+1]=iNextGap
+                
             tMatrix.append(tCurrentVector)
+            self.set_matrix_lineName(sTrId,True)
         self.currentMatrix=list(tMatrix)
-
     
     def get_matrix_lineName(self,iIndex=None):
         if iIndex is None:
