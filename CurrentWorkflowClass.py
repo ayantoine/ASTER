@@ -256,67 +256,7 @@ class ToolContent:
                 sContent+="\t".join(["{}"]*len(tFormatArgs)).format(*tFormatArgs)
                 sContent+="\n"
         return sContent
-    
-    
-    #"""
-    #Order of Hsp on read must fit order of Hsp on gene
-    #If not, try to remove the minority ?
-    #"""
-    #def check_colinearity(self):
-        #for oAlignContent in self.get_alignList():
-            #tHspList=oAlignContent.get_hspList()
-            #tSortedHspList=sorted(tHspList,key=lambda x: x.sbjct_start)
-            #while True:
-                #tRemoveHsp=[]
-                #tConfidenceList=[]
-                #for iCurrentHspIndex in range(len(tHspList)):
-                    #oCurrentHsp=tHspList[iCurrentHspIndex]
-                    #iCurrentGeneStart=oCurrentHsp.query_start
-                    #iCurrentGeneStop=oCurrentHsp.query_end
-                    #iQueryStrand="+"
-                    #if iCurrentGeneStart>iCurrentGeneStop:
-                        #iQueryStrand="-"
-                    #iCurrentConfidence=0
-                    #for iAnotherHspIndex in range(len(tHspList)):
-                        #oAnotherHsp=tHspList[iAnotherHspIndex]
-                        #iAnotherGeneStart=oAnotherHsp.query_start
-                        #iAnotherGeneStop=oAnotherHsp.query_end
-                        
-                        #if iCurrentHspIndex==iAnotherHspIndex:
-                            #continue
-                        #elif iCurrentHspIndex>iAnotherHspIndex:  #Another is before Current
-                            #if iCurrentGeneStart>iAnotherGeneStart and iQueryStrand=="+":
-                                #iCurrentConfidence+=1
-                            #elif iCurrentGeneStart<iAnotherGeneStart and iQueryStrand=="-":
-                                #iCurrentConfidence+=1
-                            #else:
-                                #iCurrentConfidence+=-1
-                        #elif iCurrentHspIndex<iAnotherHspIndex:  #Another is after Current
-                            #if iCurrentGeneStart<iAnotherGeneStart and iQueryStrand=="+":
-                                #iCurrentConfidence+=1
-                            #elif iCurrentGeneStart>iAnotherGeneStart and iQueryStrand=="-":
-                                #iCurrentConfidence+=1
-                            #else:
-                                #iCurrentConfidence+=-1
-                    #tConfidenceList.append(iCurrentConfidence)
-                #print("tConfidenceList",tConfidenceList)
-                        
-                        
 
-
-
-                    ##if len(tRemoveHsp)!=0:
-                        ##break
-                #if len(tRemoveHsp)==0:
-                    #break
-                #else:
-                    #print("WARNING : {} reject {} Hsp".format(oAlignContent.get_id(),len(tRemoveHsp)))
-                    ##for oHsp in tRemoveHsp:
-                        ##print(oHsp.sbjct_start,oHsp.sbjct_end,len(oHsp.sbjct.replace("-","")))
-                    #tHspList=[X for X in tHspList if X not in tRemoveHsp]
-                    #if len(tHspList)<2:
-                        #break
-            #oAlignContent.set_hspList(tHspList)
                     
     """
     Two Hsp coord that overlap on the Read must overlap on the Gene
@@ -1800,10 +1740,10 @@ class AlignedMatrixContent():
         #print(self.get_line_BlockName_Structure(iDebugLineIndex))
         #exit()
         
-        print(self.get_limitedBlockName())
-        print(sorted(self.get_blockSize()))
-        print(sorted(self.get_blockCoord()))
-        print(sorted(self.get_blockPop()))
+        #print("selfBlock:",self.get_limitedBlockName())
+        #print("selfBlockSize:",self.get_blockSize())
+        #print("selfBlockCoord:",self.get_blockCoord())
+        #print("selfBlockPop:",self.get_blockPop())
         #for iLineIndex in range(len(self.get_matrix())):
             #print(self.get_matrix_lineName(iLineIndex))
             #print(self.get_line_BlockName_Structure(iLineIndex))
@@ -1884,8 +1824,8 @@ class AlignedMatrixContent():
         sCoreLine=""
         for iLineIndex in range(len(self.get_matrix())):
             tLineModel=self.get_line_BlockName_Structure(iLineIndex)
-            print(self.get_matrix_lineName(iLineIndex))
-            print(tLineModel)
+            #print(self.get_matrix_lineName(iLineIndex))
+            #print(tLineModel)
             sCoreLine+=self.get_matrix_lineName(iLineIndex)
             tData=[]
             for sBlockName in tBlockName:
@@ -2123,7 +2063,6 @@ class AlignedMatrixContent():
         for iGroupId in sorted(dGroup2Index):
             #print("iGroupId",dGroup2Index[iGroupId])
             if len(set([self.get_globalVector(X) for X in dGroup2Index[iGroupId] if self.get_globalVector(X) in [">","<"]]))!=1:
-                #exit("ERROR 1726 : different type of variation\n{}".format([self.get_globalVector(X) for X in dGroup2Index[iGroupId] if self.get_globalVector(X) in [">","<"]]))
                 print("NEAR-ERROR 1726 : different type of variation\n{}\t{}".format([self.get_globalVector(X) for X in dGroup2Index[iGroupId] if self.get_globalVector(X) in [">","<"]],dGroup2Index[iGroupId]))
                 print("Try without group this elements")
                 continue
@@ -2450,15 +2389,6 @@ class AlignedMatrixContent():
             return iPreviousPop-iCurrentPop
         else:
             return 0
-        #if iIndex!=len(self.get_globalPopVector())-1:
-            #iCurrentPop=self.get_globalPopVector(iIndex)
-            #for iNextIndex in range(iIndex,len(self.get_globalPopVector())):
-                #if self.get_globalPopVector(iNextIndex)!=iCurrentPop:
-                    #break
-            #iNextPop=self.get_globalPopVector(iNextIndex)
-            #return iCurrentPop-iNextPop
-        #else:
-            #return 0
     
     def get_globalPopVector(self,iIndex=None):
         if iIndex is None:
@@ -2558,100 +2488,81 @@ class AlignedMatrixContent():
         tMatrix=[]
         tBaseVector=[0]*iSize
         for sTrId in sorted(dTr2Data):
-            print("~~~~~~~~~~~~~~~~~")
-            print(sTrId,dTr2Data[sTrId][sorted(dTr2Data[sTrId])[0]]["Strand"])
-            tRemoveDb=[]
+            #print("~~~~~~~~~~~~~~~~~")
+            #print(sTrId,dTr2Data[sTrId][sorted(dTr2Data[sTrId])[0]]["Strand"])
             tCurrentVector=list(tBaseVector)
-            ## Step 1 : remove db if not colinear with neighbours
-            ## i.e. Coord order on the read must respect coord order on the gene
-            for iDbIndex in range(len(dTr2Data[sTrId])):
-                dbCurrentKey=sorted(dTr2Data[sTrId])[iDbIndex]
+            tDbKeyList=[]
+            tConfidence=[]
+            bOverlappingHit=False
+            ## Step 3 : check colinearity
+            for iCurrentDbIndex in range(len(dTr2Data[sTrId])-1):
+                dbCurrentKey=sorted(dTr2Data[sTrId])[iCurrentDbIndex]
+                sStrand=dTr2Data[sTrId][dbCurrentKey]["Strand"]
                 iCurrentReadSize=dTr2Data[sTrId][dbCurrentKey]["ReadSize"]
                 iCurrentGeneStart=dTr2Data[sTrId][dbCurrentKey]["GeneStart"]
                 iCurrentGeneStop=dTr2Data[sTrId][dbCurrentKey]["GeneStop"]
                 iCurrentReadStart=dTr2Data[sTrId][dbCurrentKey]["ReadStart"]
                 iCurrentReadStop=dTr2Data[sTrId][dbCurrentKey]["ReadStop"]
-                sStrand=dTr2Data[sTrId][dbCurrentKey]["Strand"]
                 
-                bIsNotFirst=iDbIndex!=0
-                bHavePrevious=iDbIndex-1 not in tRemoveDb
-                if bIsNotFirst and bHavePrevious:
-                    dbPreviousKey=sorted(dTr2Data[sTrId])[iDbIndex-1]
-                    iPreviousReadSize=dTr2Data[sTrId][dbPreviousKey]["ReadSize"]
-                    iPreviousGeneStart=dTr2Data[sTrId][dbPreviousKey]["GeneStart"]
-                    iPreviousGeneStop=dTr2Data[sTrId][dbPreviousKey]["GeneStop"]
-                    iPreviousReadStart=dTr2Data[sTrId][dbPreviousKey]["ReadStart"]
-                    iPreviousReadStop=dTr2Data[sTrId][dbPreviousKey]["ReadStop"]
-                else:
-                    dbPreviousKey=None
-                    iPreviousReadSize=None
-                    iPreviousGeneStart=None
-                    iPreviousGeneStop=None
-                    iPreviousReadStart=None
-                    iPreviousReadStop=None
+                if iCurrentDbIndex==0:
+                    tDbKeyList.append(dbCurrentKey)
+                    tConfidence.append(0)
                 
-                bIsNotLast=iDbIndex!=len(dTr2Data[sTrId])-1
-                bHaveNext=iDbIndex+1 not in tRemoveDb
-                if bIsNotLast and bHaveNext:
-                    dbNextKey=sorted(dTr2Data[sTrId])[iDbIndex+1]
-                    iNextReadSize=dTr2Data[sTrId][dbNextKey]["ReadSize"]
-                    iNextGeneStart=dTr2Data[sTrId][dbNextKey]["GeneStart"]
-                    iNextGeneStop=dTr2Data[sTrId][dbNextKey]["GeneStop"]
-                    iNextReadStart=dTr2Data[sTrId][dbNextKey]["ReadStart"]
-                    iNextReadStop=dTr2Data[sTrId][dbNextKey]["ReadStop"]
-                else:
-                    dbNextKey=None
-                    iNextReadSize=None
-                    iNextGeneStart=None
-                    iNextGeneStop=None
-                    iNextReadStart=None
-                    iNextReadStop=None
-                
-                print("------------")
-                print("ReadSize",iCurrentReadSize)
-                print("dbCurrentKey",iCurrentReadStart,iCurrentReadStop,iCurrentGeneStart,iCurrentGeneStop)
-                print("dbPreviousKey",iPreviousReadStart,iPreviousReadStop,iPreviousGeneStart,iPreviousGeneStop)
-                print("dbNextKey",iNextReadStart,iNextReadStop,iNextGeneStart,iNextGeneStop)
-                
-                bPreviousOrder=True
-                bNextOrder=True
+                for iAnotherDbIndex in range(iCurrentDbIndex+1,len(dTr2Data[sTrId])):
+                    dbAnotherKey=sorted(dTr2Data[sTrId])[iAnotherDbIndex]
+                    iAnotherGeneStart=dTr2Data[sTrId][dbAnotherKey]["GeneStart"]
+                    iAnotherGeneStop=dTr2Data[sTrId][dbAnotherKey]["GeneStop"]
+                    iAnotherReadStart=dTr2Data[sTrId][dbAnotherKey]["ReadStart"]
+                    iAnotherReadStop=dTr2Data[sTrId][dbAnotherKey]["ReadStop"]
                     
-                if dbPreviousKey is not None:
-                    bPreviousOrder=False
-                    if iPreviousReadStop<iCurrentReadStart:
-                        if iPreviousGeneStop<iCurrentGeneStart and sStrand=="+":
-                            bPreviousOrder=True
-                        elif iPreviousGeneStart>iCurrentGeneStop and sStrand=="-":
-                            bPreviousOrder=True
-                    elif iPreviousReadStop>=iCurrentReadStart:
-                        ## Overlapping alignment on the Read. Not possible ?
-                        exit("Error 2614 : overlapping alignment on the Read")
-                    else:
-                        exit("FATAL 2616 : This line must never happend")
+                    if iCurrentDbIndex==0:
+                        tDbKeyList.append(dbAnotherKey)
+                        tConfidence.append(0)
                     
-                if dbNextKey is not None:
-                    bNextOrder=False
-                    if iCurrentReadStop<iNextReadStart:                    
-                        if iCurrentGeneStop<iNextGeneStart and sStrand=="+":
-                            bNextOrder=True
-                        elif iCurrentGeneStart>iNextGeneStop and sStrand=="-":
-                            bNextOrder=True
-                    elif iCurrentReadStop>=iNextReadStart:
-                        ## Overlapping alignment on the Read. Not possible ?
-                        exit("Error 2626 : overlapping alignment on the Read")
+                    bStrongConfidence=False
+                    if sStrand=="+":
+                        if iCurrentReadStop<iAnotherReadStart:
+                            ## iCurrentRead positionned before iAnotherRead
+                            if iCurrentGeneStop<iAnotherGeneStart:
+                                ## iCurrentGene positionned before iAnotherRead
+                                bStrongConfidence=True
+                        elif iCurrentReadStart>iAnotherReadStop:
+                            ## iCurrentRead positionned after iAnotherRead
+                            if iCurrentGeneStart>iAnotherGeneStop:
+                                ## iCurrentGene positionned before iAnotherRead
+                                bStrongConfidence=True
+                        else:
+                            bOverlappingHit=True
+                            #exit("Error 2594 : iCurrentReadStart==iAnotherReadStop")
                     else:
-                        exit("FATAL 2628 : This line must never happend")
-                
-                if bNextOrder and bPreviousOrder:
-                    pass
+                        if iCurrentReadStop<iAnotherReadStart:
+                            ## iCurrentRead positionned before iAnotherRead
+                            if iCurrentGeneStart>iAnotherGeneStop:
+                                ## iCurrentGene positionned before iAnotherRead
+                                bStrongConfidence=True
+                        elif iCurrentReadStart>iAnotherReadStop:
+                            ## iCurrentRead positionned after iAnotherRead
+                            if iCurrentGeneStop<iAnotherGeneStart:
+                                ## iCurrentGene positionned before iAnotherRead
+                                bStrongConfidence=True
+                        else:
+                            bOverlappingHit=True
+                            #exit("Error 2607 : iCurrentReadStart==iAnotherReadStop")
+                        
+                    if bStrongConfidence:
+                        tConfidence[iCurrentDbIndex]+=1
+                        tConfidence[iAnotherDbIndex]+=1
+                        
+            ## Step 2 : dismiss read where there is trouble into the confidence
+            if max(tConfidence)!=min(tConfidence):
+                if not bOverlappingHit:
+                    print("Warning : read dismissed. Problem into the colinearity")
                 else:
-                    tRemoveDb.append(dbCurrentKey)
-                print("tRemoveDb",tRemoveDb)
+                    print("Warning : read dismissed. Overlaping hit")
+                print("dbKey : {}".format(tDbKeyList))
+                print("confidence : {}".format(tConfidence))
+                continue
             
-            ## Step 2 : remove bad db
-            for dbBadDb in tRemoveDb:
-                del dTr2Data[sTrId][dbBadDb]
-                
             ## Step 3 : fill the vector
             for iDbIndex in range(len(dTr2Data[sTrId])):
                 dbCurrentKey=sorted(dTr2Data[sTrId])[iDbIndex]
@@ -2674,8 +2585,7 @@ class AlignedMatrixContent():
                         exit("Error 2257 : iIndex>=iCurrentGeneSize")
                 
                 bIsNotFirst=iDbIndex!=0
-                bHavePrevious=iDbIndex-1 not in tRemoveDb
-                if bIsNotFirst and bHavePrevious:
+                if bIsNotFirst:
                     dbPreviousKey=sorted(dTr2Data[sTrId])[iDbIndex-1]
                     iPreviousReadSize=dTr2Data[sTrId][dbPreviousKey]["ReadSize"]
                     iPreviousGeneStart=dTr2Data[sTrId][dbPreviousKey]["GeneStart"]
@@ -2690,8 +2600,7 @@ class AlignedMatrixContent():
                     iPreviousGeneStop=None
                 
                 bIsNotLast=iDbIndex!=len(dTr2Data[sTrId])-1
-                bHaveNext=iDbIndex+1 not in tRemoveDb
-                if bIsNotLast and bHaveNext:
+                if bIsNotLast:
                     dbNextKey=sorted(dTr2Data[sTrId])[iDbIndex+1]
                     iNextReadSize=dTr2Data[sTrId][dbNextKey]["ReadSize"]
                     iNextGeneStart=dTr2Data[sTrId][dbNextKey]["GeneStart"]
@@ -2708,11 +2617,11 @@ class AlignedMatrixContent():
                 bPreviousGap=False
                 bNextGap=False
                 
-                print("------------")
-                print("ReadSize",iCurrentReadSize,"sStrand",sStrand)
-                print("dbCurrentKey",iCurrentReadStart,iCurrentReadStop,iCurrentGeneStart,iCurrentGeneStop)
-                print("dbPreviousKey",iPreviousReadStart,iPreviousReadStop,iPreviousGeneStart,iPreviousGeneStop)
-                print("dbNextKey",iNextReadStart,iNextReadStop,iNextGeneStart,iNextGeneStop)
+                #print("------------")
+                #print("ReadSize",iCurrentReadSize,"sStrand",sStrand)
+                #print("dbCurrentKey",iCurrentReadStart,iCurrentReadStop,iCurrentGeneStart,iCurrentGeneStop)
+                #print("dbPreviousKey",iPreviousReadStart,iPreviousReadStop,iPreviousGeneStart,iPreviousGeneStop)
+                #print("dbNextKey",iNextReadStart,iNextReadStop,iNextGeneStart,iNextGeneStop)
                                     
                 if iPreviousReadStop+1==iCurrentReadStart:
                     ## Contigous alignment on the read, do nothing
@@ -2773,7 +2682,7 @@ class AlignedMatrixContent():
                         if iCurrentGeneStop+1<=iCurrentGeneSize-1:
                             tCurrentVector[iCurrentGeneStop+1]=iNextGap
                         else:
-                            tCurrentVector[iCurrentGeneSize-1]=iNextGap-1
+                            tCurrentVector[iCurrentGeneSize-1]=iNextGap+1
                         #iCurrentTargetIndex=min(iCurrentGeneStop+1,iCurrentGeneSize-1)
                         ##print(iCurrentTargetIndex)
                         #tCurrentVector[iCurrentTargetIndex]=iNextGap
@@ -2783,7 +2692,7 @@ class AlignedMatrixContent():
                         if iCurrentGeneStart-1>=0:
                             tCurrentVector[iCurrentGeneStart-1]=iNextGap
                         else:
-                            tCurrentVector[0]=iNextGap-1
+                            tCurrentVector[0]=iNextGap+1
                         #iCurrentTargetIndex=max(iCurrentGeneStart-1,0)
                         ##print(iCurrentTargetIndex)
                         #tCurrentVector[iCurrentTargetIndex]=iNextGap
@@ -2861,519 +2770,6 @@ class AlignedMatrixContent():
         self.gene_start=iStart
         self.gene_end=iEnd
         self.gene_strand=iStrand
-        
-
-class OldReadContent(TranscriptContent):
-    
-    def __init__(self,sGeneId,sRefFile): #,bRegroupByValue=REGROUP_READEXON_VALUE_BOOL,iRegroupValue=REGROUP_READEXON_VALUE,fRegroupRatio=REGROUP_READEXON_THRESHOLD):
-        
-        #global REGROUP_READEXON_VALUE_BOOL
-        #REGROUP_READEXON_VALUE_BOOL=bRegroupByValue
-        #global REGROUP_READEXON_VALUE
-        #REGROUP_READEXON_VALUE=iRegroupValue
-        #global REGROUP_READEXON_THRESHOLD
-        #REGROUP_READEXON_THRESHOLD=fRegroupRatio
-        
-        self.gene_start=None
-        self.gene_end=None
-        self.gene_strand=None
-        self.size=None
-        self.readGap=None
-        self.transcript_to_exon={}
-        self.set_emptyExonList()
-        self.group_exon=[]
-        
-        self.parse_pafFile(sRefFile,sGeneId)
-        
-        self.sort_exonList()
-        self.assign_exonId()
-        self.update_transcriptList()
-        
-        #self.describe_transcript()
-        #Temp=self.describe_exon()
-        #print(Temp)
-        #print("============================")
-        self.fusion_firstReadStart()
-        self.fusion_LastReadStop()
-        if len(self.get_exonList())>1:
-            self.fusion_CommonReadExon()
-        self.sort_exonList()
-        self.assign_exonId()
-        #self.describe_transcript()
-        #Temp=self.describe_exon()
-        #print(Temp)
-        
-        self.make_group_exon()
-        #sTemp=self.describe_group_exon(True)
-        #print(sTemp)
-        
-    def compare_group_exon_with(self,oTranscriptContent):
-        tAllGroup=self.get_groupExon()
-        for iIndex in range(len(tAllGroup)):
-            tGroup=tAllGroup[iIndex]
-            for oSelfExon in tGroup:
-                iMinVal=None
-                iMaxVal=None
-                for oExon in tGroup:
-                    if iMinVal is None:
-                        iMinVal=oExon.get_start()
-                        iMaxVal=oExon.get_stop()
-                    else:
-                        iMinVal=min(iMinVal,oExon.get_start())
-                        iMaxVal=max(iMaxVal,oExon.get_stop())
-            tCorrespondingTrExon=[]
-            for oTrExon in oTranscriptContent.get_exonList():
-                if oTrExon.get_start()>iMaxVal or oTrExon.get_stop()<iMinVal:
-                    #No overlap, pass
-                    continue
-                tCorrespondingTrExon.append(oTrExon)
-            print("Group {} ({}-{}, {} elements) corresponding to :".format(iIndex,iMinVal,iMaxVal,len(tGroup)))
-            if len(tCorrespondingTrExon)>0:
-                for oTrExon in tCorrespondingTrExon:
-                    print(oTrExon.get_index(),oTrExon.get_start(),oTrExon.get_stop())
-            else:
-                print("None")
-                
-    
-    def describe_group_exon(self,resume=False):
-        bResume=resume
-        sContent=""
-        tAllGroup=self.get_groupExon()
-        if bResume:
-            sContent+="GroupId\tVariant\tStart\tEnd\n"
-        for iIndex in range(len(tAllGroup)):
-            tGroup=tAllGroup[iIndex]
-            if not bResume:
-                sContent+="Group {} :\n".format(iIndex)
-                for oExon in tGroup:
-                    sContent+="{}\t{}\t{}\n".format(oExon.get_index(),oExon.get_start(),oExon.get_stop())
-            else:
-                sContent+="{}\t{}".format(iIndex,len(tGroup))
-                iMinVal=None
-                iMaxVal=None
-                for oExon in tGroup:
-                    if iMinVal is None:
-                        iMinVal=oExon.get_start()
-                        iMaxVal=oExon.get_stop()
-                    else:
-                        iMinVal=min(iMinVal,oExon.get_start())
-                        iMaxVal=max(iMaxVal,oExon.get_stop())
-                sContent+="\t{}\t{}\n".format(iMinVal,iMaxVal)
-        return sContent
-    
-    def make_group_exon(self):
-        self.set_emptyGroupExon()
-        tGroupOfExon=[]
-        tListOfExon=sorted(self.get_exonList(), key=lambda x: x.start)
-        #tMadeExon=[]
-        #tTodoExon=[]
-        while len(tListOfExon)!=0:
-            #if len(tTodoExon)==0:
-                #tTodoExon.append(tListOfExon.pop())
-            tMadeExon=[]
-            tTodoExon=[tListOfExon.pop(0)]
-            while len(tTodoExon)!=0:
-                oTargetedExon=tTodoExon.pop(0)
-                for oExon in tListOfExon:
-                    if oExon.get_start()>oTargetedExon.get_stop() or oExon.get_stop()<oTargetedExon.get_start():
-                        #No overlap, pass
-                        continue
-                    tTodoExon.append(oExon)
-                for oExon in tTodoExon:
-                    if oExon in tListOfExon:
-                        tListOfExon.remove(oExon)
-                tMadeExon.append(oTargetedExon)
-            tOneGroupOfExon=[X for X in sorted(tMadeExon, key=lambda x: x.start)]
-            tGroupOfExon.append(tOneGroupOfExon)        
-        self.set_groupExon(tGroupOfExon)
-        
-
-    def set_emptyGroupExon(self):
-        self.group_exon=[]
-    
-    def get_groupExon(self):
-        return self.group_exon
-        
-    def set_groupExon(self,tList):
-        self.group_exon=list(tList)
-    
-    def fusion_CommonReadExon(self):
-        self.sort_exonList()
-        
-        #Regroup similar Exon
-        dExon2SimilarExon={}
-        tListOfExon=self.get_exonList()
-        for iCurrentIndex in range(len(tListOfExon)):
-            oCurrentExon=tListOfExon[iCurrentIndex]
-            dExon2SimilarExon[oCurrentExon]=[oCurrentExon]
-            iCurrentStart=oCurrentExon.get_start()
-            iCurrentStop=oCurrentExon.get_stop()
-            iCurrentSize=iCurrentStop-iCurrentStart+1
-            for iAnotherIndex in range(len(tListOfExon)):
-                if iAnotherIndex==iCurrentIndex:
-                    continue
-                oAnotherExon=tListOfExon[iAnotherIndex]
-                iAnotherStart=oAnotherExon.get_start()
-                iAnotherStop=oAnotherExon.get_stop()
-                iAnotherSize=iAnotherStop-iAnotherStart+1
-                iRefSize=max(iAnotherSize,iCurrentSize)
-                if REGROUP_READEXON_VALUE_BOOL:
-                    fThresholdValue=REGROUP_READEXON_VALUE
-                else:
-                    fThresholdValue=iRefSize*REGROUP_READEXON_THRESHOLD
-                if iAnotherStop<iCurrentStart or iAnotherStart>iCurrentStop:
-                    #Nothing in common, continue
-                    continue
-                elif iAnotherStop<=iCurrentStop and iAnotherStart>=iCurrentStart:
-                    #Another is include into Current
-                    if iCurrentStart+fThresholdValue>=iAnotherStart \
-                    and iCurrentStop-fThresholdValue<=iAnotherStop:
-                        #low distance between same extremity, they are maybe common
-                        dExon2SimilarExon[oCurrentExon].append(oAnotherExon)
-                    else:
-                        #large distance between same extremity
-                        continue
-                elif iAnotherStop>=iCurrentStop and iAnotherStart<=iCurrentStart:
-                    #Current is include into Another
-                    if iCurrentStart-fThresholdValue<=iAnotherStart \
-                    and iCurrentStop+fThresholdValue>=iAnotherStop:
-                        #low distance between same extremity, they are maybe common
-                        dExon2SimilarExon[oCurrentExon].append(oAnotherExon)
-                    else:
-                        #large distance between same extremity
-                        continue
-                elif iAnotherStop<=iCurrentStop and iAnotherStart<=iCurrentStart:
-                    #Another overlap the beginning of Current
-                    if iCurrentStart-fThresholdValue<=iAnotherStart \
-                    and iCurrentStop-fThresholdValue<=iAnotherStop:
-                        #low distance between same extremity, they are maybe common
-                        dExon2SimilarExon[oCurrentExon].append(oAnotherExon)
-                    else:
-                        #large distance between same extremity
-                        continue
-                elif iAnotherStart>iCurrentStart and iAnotherStop>iCurrentStop:
-                    #Another overlap the ending of Current
-                    if iCurrentStop+fThresholdValue>=iAnotherStop \
-                    and iCurrentStart+fThresholdValue>=iAnotherStart:
-                        #low distance between same extremity, they are maybe common
-                        dExon2SimilarExon[oCurrentExon].append(oAnotherExon)
-                    else:
-                        #large distance between same extremity
-                        continue
-
-        #for oCurrentExon in dExon2SimilarExon:
-            #print(oCurrentExon.get_index(),":")
-            #print([X.get_index() for X in dExon2SimilarExon[oCurrentExon]])
-        #print("---------------")
-        
-        #Merge common exon
-        tUsedExon=[]
-        for oCurrentExon in dExon2SimilarExon:
-            #print("===================")
-            #print(oCurrentExon.get_index())
-            #print("===================")
-            if oCurrentExon not in tUsedExon:
-                #Get all common
-                tUsedExon.append(oCurrentExon)
-                tSimilarExon=[oCurrentExon]
-                tSimilarExon.extend([X for X in dExon2SimilarExon[tSimilarExon[0]] if X not in tUsedExon])
-                #print(">>",tSimilarExon[0].get_index())
-                #print("->",[X.get_index() for X in dExon2SimilarExon[tSimilarExon[0]] if X not in tUsedExon])
-                bNoChange=False
-                while not bNoChange:
-                    iListSize=len(tSimilarExon)
-                    for iIndex in range(iListSize):
-                        #print(">>",tSimilarExon[iIndex].get_index())
-                        #print("->",[X.get_index() for X in dExon2SimilarExon[tSimilarExon[iIndex]] if X not in tUsedExon])
-                        tTargetedExon=[X for X in dExon2SimilarExon[tSimilarExon[iIndex]] if X not in tUsedExon]
-                        tSimilarExon.extend(tTargetedExon)
-                        tUsedExon.extend(tTargetedExon)
-                    tSimilarExon=list(set(tSimilarExon))
-                    tUsedExon=list(set(tUsedExon))
-                    if len(tSimilarExon)==iListSize:
-                        bNoChange=True
-                #print("*****************Used*****************")
-                #print([X.get_index() for X in tUsedExon])
-                #print("*****************Similar*****************")
-                #print([X.get_index() for X in tSimilarExon])
-                #print("*****************")
-                #Assign Start/Stop by majority
-                dStop={}
-                dStart={}
-                for oSimilarExon in tSimilarExon:
-                    try:
-                        dStart[oSimilarExon.get_start()]+=1
-                    except KeyError:
-                        dStart[oSimilarExon.get_start()]=1
-                    try:
-                        dStop[oSimilarExon.get_stop()]+=1
-                    except KeyError:
-                        dStop[oSimilarExon.get_stop()]=1
-                iMaxStart=None
-                bStartEquality=False
-                for iStartValue in dStart:
-                    if iMaxStart is None:
-                        iMaxStart=iStartValue
-                    else:
-                        if dStart[iMaxStart]==dStart[iStartValue]:
-                            bEquality=True
-                        elif dStart[iMaxStart]<dStart[iStartValue]:
-                            iMaxStart=iStartValue
-                if bStartEquality:
-                    exit("ERROR 1807 : Start equality")
-                iMaxStop=None
-                bStopEquality=False
-                for iStopValue in dStop:
-                    if iMaxStop is None:
-                        iMaxStop=iStopValue
-                    else:
-                        if dStop[iMaxStop]==dStop[iStopValue]:
-                            bEquality=True
-                        elif dStop[iMaxStop]<dStop[iStopValue]:
-                            iMaxStop=iStopValue
-                if bStopEquality:
-                    exit("ERROR 1819 : Stop equality")
-                oNewExon=ExonContent(iMaxStart,iMaxStop,"ThisIsNOTaTranscriptId")
-                oNewExon.set_emptyTranscript()
-                for oSimilarExon in tSimilarExon:
-                    #print(oSimilarExon.describe_self())
-                    oNewExon.update(oSimilarExon)
-                    self.remove_exon(oSimilarExon)
-                self.add_exon(oNewExon)
-                
-                
-        
-    
-    def fusion_firstReadStart(self):
-        self.sort_exonList()
-        tTargetedExon=[]
-        tTargetedExonIndex=[]
-        tListOfTranscript=list(self.get_transcript())
-        
-        #get all first exon index of transcript
-        for sTranscriptId in tListOfTranscript:
-            tTargetedExonIndex.append(self.get_transcriptRelation(sTranscriptId)[0])
-        tTargetedExonIndex=list(set(tTargetedExonIndex))
-
-        #get all first exon of transcript, store quantity value for all stop
-        dStop2Exon={}
-        for oExon in self.get_exonList():
-            if oExon.get_index() in tTargetedExonIndex:
-                tTargetedExonIndex.remove(oExon.get_index())
-                tTargetedExon.append(oExon)
-                try:
-                    dStop2Exon[oExon.get_stop()].append(oExon)
-                except KeyError:
-                    dStop2Exon[oExon.get_stop()]=[oExon]
-            if len(tTargetedExonIndex)==0:
-                break
-                
-        #Reorder tTargetedExon by stop population
-        dQuantity2Stop={}
-        tReorderedTargetedExon=[]
-        for iStopValue in dStop2Exon:
-            try:
-                dQuantity2Stop[len(dStop2Exon[iStopValue])].append(iStopValue)
-            except KeyError:
-                dQuantity2Stop[len(dStop2Exon[iStopValue])]=[iStopValue]
-        for iQuantity in sorted(dQuantity2Stop.keys(),reverse=True):
-            for iTargetedStop in dQuantity2Stop[iQuantity]:
-                for oExon in sorted(dStop2Exon[iTargetedStop], key=lambda x: x.start):
-                    tReorderedTargetedExon.append(oExon)
-        tTargetedExon=list(tReorderedTargetedExon)
-
-        #fusion if they have the same stop +/-10%
-        fThreshold=REGROUP_FIRSTREADEXON_THRESHOLD
-        bNoChange=False
-        while not bNoChange:
-            bNoChange=True
-            for iCurrentIndex in range(len(tTargetedExon)-1):
-                oRefExon=tTargetedExon[iCurrentIndex]
-                iRefExonSize=oRefExon.get_stop()-oRefExon.get_start()+1
-                fFraction=iRefExonSize*fThreshold
-                for iAnotherIndex in range(iCurrentIndex+1,len(tTargetedExon)):
-                    oAnotherExon=tTargetedExon[iAnotherIndex]
-                    if oAnotherExon.get_stop()>=oRefExon.get_stop()-fFraction and oAnotherExon.get_stop()<=oRefExon.get_stop()+fFraction:
-                        oRefExon.update(oAnotherExon)
-                        self.remove_exon(oAnotherExon)
-                        bNoChange=False
-                        break
-                if not bNoChange:
-                    tTargetedExon.remove(oAnotherExon)
-                    break
-
-    def fusion_LastReadStop(self):
-        self.sort_exonList()
-        tTargetedExon=[]
-        tTargetedExonIndex=[]
-        tListOfTranscript=list(self.get_transcript())
-        
-        #get all last exon index of transcript
-        for sTranscriptId in tListOfTranscript:
-            tTargetedExonIndex.append(self.get_transcriptRelation(sTranscriptId)[-1])
-        tTargetedExonIndex=list(set(tTargetedExonIndex))
-        
-        #get all last exon of transcript
-        dStart2Exon={}
-        for oExon in self.get_exonList()[::-1]:
-            if oExon.get_index() in tTargetedExonIndex:
-                tTargetedExonIndex.remove(oExon.get_index())
-                tTargetedExon.append(oExon)
-                try:
-                    dStart2Exon[oExon.get_start()].append(oExon)
-                except KeyError:
-                    dStart2Exon[oExon.get_start()]=[oExon]
-            if len(tTargetedExonIndex)==0:
-                break
-                
-        #Reorder tTargetedExon by start population
-        dQuantity2Start={}
-        tReorderedTargetedExon=[]
-        for iStopValue in dStart2Exon:
-            try:
-                dQuantity2Start[len(dStart2Exon[iStopValue])].append(iStopValue)
-            except KeyError:
-                dQuantity2Start[len(dStart2Exon[iStopValue])]=[iStopValue]
-        for iQuantity in sorted(dQuantity2Start.keys(),reverse=True):
-            for iTargetedStart in dQuantity2Start[iQuantity]:
-                for oExon in sorted(dStart2Exon[iTargetedStart],reverse=True, key=lambda x: x.stop):
-                    tReorderedTargetedExon.append(oExon)
-        tTargetedExon=list(tReorderedTargetedExon)        
-
-        #fusion if they have the same start +/-10%
-        fThreshold=REGROUP_LASTREADEXON_THRESHOLD
-        bNoChange=False
-        while not bNoChange:
-            bNoChange=True
-            for iCurrentIndex in range(len(tTargetedExon)-1):
-                oRefExon=tTargetedExon[iCurrentIndex]
-                iRefExonSize=oRefExon.get_stop()-oRefExon.get_start()+1
-                fFraction=iRefExonSize*fThreshold
-                for iAnotherIndex in range(iCurrentIndex+1,len(tTargetedExon)):
-                    oAnotherExon=tTargetedExon[iAnotherIndex]
-                    if oAnotherExon.get_start()>=oRefExon.get_start()-fFraction and oAnotherExon.get_start()<=oRefExon.get_start()+fFraction:
-                        oRefExon.update(oAnotherExon)
-                        self.remove_exon(oAnotherExon)
-                        bNoChange=False
-                        break
-                if not bNoChange:
-                    tTargetedExon.remove(oAnotherExon)
-                    break
-                    
-
-    def parse_pafFile(self,sPathFile,sGeneId):
-        
-        dRead2Coord={}
-        for sLine in open(sPathFile):
-            sLine=sLine.strip()
-            tLine=sLine.split()
-            #tRef=["ReadId","ReadSize","ReadStart","ReadEnd","Strand","GeneId","GeneSize","GeneStart","GeneStop","NbrNotIndel","AlignSize","Quality"]
-            dRef2Content={}
-            for iIndex in range(len(PAF_COLUMN)):
-                try:
-                    dRef2Content[PAF_COLUMN[iIndex]]=int(tLine[iIndex])
-                except ValueError:
-                    dRef2Content[PAF_COLUMN[iIndex]]=tLine[iIndex]
-            sCurrentTrId=dRef2Content["ReadId"]
-            if sCurrentTrId not in self.get_transcript():
-                self.add_transcript(sCurrentTrId)
-
-            try:
-                dRead2Coord[sCurrentTrId][min(dRef2Content["ReadStart"],dRef2Content["ReadStop"])]=(
-                    dRef2Content["ReadStart"],
-                    dRef2Content["ReadStop"],
-                    dRef2Content["GeneStart"],
-                    dRef2Content["GeneStop"],
-                    #min(dRef2Content["ReadStart"],dRef2Content["ReadStop"]),
-                    #max(dRef2Content["ReadStart"],dRef2Content["ReadStop"]),
-                    #min(dRef2Content["GeneStart"],dRef2Content["GeneStop"]),
-                    #max(dRef2Content["GeneStart"],dRef2Content["GeneStop"]),
-                    dRef2Content["Strand"]
-                    )
-            except KeyError:
-                dRead2Coord[sCurrentTrId]={
-                    min(dRef2Content["ReadStart"],dRef2Content["ReadStop"]):
-                        (
-                            dRef2Content["ReadStart"],
-                            dRef2Content["ReadStop"],
-                            dRef2Content["GeneStart"],
-                            dRef2Content["GeneStop"],
-                            #min(dRef2Content["ReadStart"],dRef2Content["ReadStop"]),
-                            #max(dRef2Content["ReadStart"],dRef2Content["ReadStop"]),
-                            #min(dRef2Content["GeneStart"],dRef2Content["GeneStop"]),
-                            #max(dRef2Content["GeneStart"],dRef2Content["GeneStop"]),
-                            dRef2Content["Strand"]
-                        )
-                    }
-            oExon=ExonContent(int(dRef2Content["GeneStart"]),int(dRef2Content["GeneStop"]),sCurrentTrId)
-            self.update_exonList(oExon)
-        self.set_geneCoord(int(dRef2Content["GeneStart"]),int(dRef2Content["GeneStop"]),1)
-        self.set_size(int(dRef2Content["ReadSize"]))
-        self.compute_readGap(dRead2Coord)
-        
-    def get_size(self):
-        return self.size
-        
-    def set_size(self,iInt):
-        self.size=iInt
-
-    def compute_readGap(self,dDict):
-        dRead2GapCoord={}
-        for sTrId in dDict:
-            iLastValue=None
-            iLastLimit=None
-            #print(dDict[sTrId])
-            for iCoordTag in sorted(dDict[sTrId]):
-                iReadStart=dDict[sTrId][iCoordTag][0]
-                iReadStop=dDict[sTrId][iCoordTag][1]
-                iGeneStart=dDict[sTrId][iCoordTag][2]
-                iGeneStop=dDict[sTrId][iCoordTag][3]
-                sReadStrand=dDict[sTrId][iCoordTag][4]
-                #print("===================")
-                #print(iReadStart,iReadStop)
-                #print(iGeneStart,iGeneStop)
-                #print(sReadStrand)
-                if iLastValue==None:
-                    iLastValue=iReadStop
-                    if sReadStrand=="+":
-                        iLastLimit=iGeneStop
-                    else:
-                        iLastLimit=iGeneStart
-                else:
-                    iSpaceBetween=(iReadStart-1)-iLastValue
-                    
-                    if iSpaceBetween>0:
-                        #There is a gap
-                        dbRegion=(iLastLimit,iGeneStop)
-                        #print(iSpaceBetween)
-                        #print(dbRegion)
-                        #input()
-                        if sReadStrand=="+":
-                            try:
-                                dRead2GapCoord[sTrId][iLastLimit]=(iLastLimit,iGeneStart,iSpaceBetween)
-                            except KeyError:
-                                dRead2GapCoord[sTrId]={iLastLimit:(iLastLimit,iGeneStart,iSpaceBetween)}
-                        else:
-                            try:
-                                dRead2GapCoord[sTrId][iGeneStart]=(iGeneStart,iLastLimit,iSpaceBetween)
-                            except KeyError:
-                                dRead2GapCoord[sTrId]={iGeneStart:(iGeneStart,iLastLimit,iSpaceBetween)}
-                    if iLastValue<iReadStop:
-                        iLastValue=iReadStop
-                        if sReadStrand=="+":
-                            iLastLimit=iGeneStop
-                        else:
-                            iLastLimit=iGeneStart
-        self.set_readGap(dRead2GapCoord)
-        
-    def set_readGap(self,dDict):
-        self.readGap=dDict
-        #print(dDict)
-        #exit()
-        
-    def get_readGap(self):
-        return self.readGap
-        
         
 class ExonContent:
 

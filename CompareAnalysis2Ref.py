@@ -152,7 +152,7 @@ if __name__ == "__main__":
     elif iTool==2:
         sTool="Exonerate"
         oFileContent=ExonerateContent(sInputFile,sRefFile,sFastaFile,dRead2Strand)
-        oFileContent.purge_alignList(["ch27_read13167_template_pass_BYK_CB_ONT_1_FAF04998_A"])
+        #oFileContent.purge_alignList(["ch27_read13167_template_pass_BYK_CB_ONT_1_FAF04998_A"])
         #oFileContent.describe_AllHsp()
         #oFileContent.check_colinearity()
         oFileContent.check_divergence()
