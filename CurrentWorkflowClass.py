@@ -1740,10 +1740,10 @@ class AlignedMatrixContent():
         #print(self.get_line_BlockName_Structure(iDebugLineIndex))
         #exit()
         
-        #print("selfBlock:",self.get_limitedBlockName())
-        #print("selfBlockSize:",self.get_blockSize())
-        #print("selfBlockCoord:",self.get_blockCoord())
-        #print("selfBlockPop:",self.get_blockPop())
+        print("selfBlock:",self.get_limitedBlockName())
+        print("selfBlockSize:",self.get_blockSize())
+        print("selfBlockCoord:",self.get_blockCoord())
+        print("selfBlockPop:",self.get_blockPop())
         #for iLineIndex in range(len(self.get_matrix())):
             #print(self.get_matrix_lineName(iLineIndex))
             #print(self.get_line_BlockName_Structure(iLineIndex))
@@ -1824,8 +1824,8 @@ class AlignedMatrixContent():
         sCoreLine=""
         for iLineIndex in range(len(self.get_matrix())):
             tLineModel=self.get_line_BlockName_Structure(iLineIndex)
-            #print(self.get_matrix_lineName(iLineIndex))
-            #print(tLineModel)
+            print(self.get_matrix_lineName(iLineIndex))
+            print(tLineModel)
             sCoreLine+=self.get_matrix_lineName(iLineIndex)
             tData=[]
             for sBlockName in tBlockName:
@@ -1861,8 +1861,19 @@ class AlignedMatrixContent():
                                 tData[iAnotherIndex]="****"
                                 if iAnotherIndex==iValueMissingIndex:
                                     tData[iAnotherIndex]=str(iPreviousValue)
+                                    
+                                    
                             iPreviousValue=None
                             iPreviousIndex=None
+                        elif iPreviousValue==-1:
+                            ## Specific case : gap of size -1 can't have two equivalence
+                            for iThisIndex in range(len(tData)):
+                                print(tBlockName[iThisIndex],tLineModel[iPreviousIndex-1])
+                                if tBlockName[iThisIndex]==tLineModel[iPreviousIndex-1]:
+                                    tData[iThisIndex+1]=str(iPreviousValue)
+                                    break
+                            iPreviousValue=tLineModel[iInLineIndex]
+                            iPreviousIndex=iInLineIndex
                         else:
                             print(iPreviousValue,tLineModel[iInLineIndex])
                             exit("Error 1805 : non-equivalent missing part")
@@ -2059,13 +2070,51 @@ class AlignedMatrixContent():
                 iLastIndex=iAddIndex
         #print(dGroup2Index)
         
+        ## Divide hybrid group
+        bApplyCorrection=True
+        while bApplyCorrection:
+            bApplyCorrection=False
+            for iGroupIdIndex in range(len(dGroup2Index)):
+                iGroupId=sorted(dGroup2Index)[iGroupIdIndex]
+                if len(set([self.get_globalVector(X) for X in dGroup2Index[iGroupId] if self.get_globalVector(X) in [">","<"]]))!=1:
+                    #print("Hybrid Group : ",[self.get_globalVector(X) for X in dGroup2Index[iGroupId]],dGroup2Index[iGroupId])
+                    bApplyCorrection=True
+                    iCurrentGroup+=1
+                    sTag=None
+                    tNewGroup=[]
+                    for iIndex in dGroup2Index[iGroupId][::-1]:
+                        #print(iIndex,tNewGroup)
+                        #print(self.get_globalVector(iIndex))
+                        if self.get_globalVector(iIndex) not in ["<",">"]:
+                            #tNewGroup.append(iIndex)
+                            tNewGroup=[iIndex]+tNewGroup
+                        elif sTag is None:
+                            #tNewGroup.append(iIndex)
+                            tNewGroup=[iIndex]+tNewGroup
+                            sTag=self.get_globalVector(iIndex)
+                        elif self.get_globalVector(iIndex)==sTag:
+                            #tNewGroup.append(iIndex)
+                            tNewGroup=[iIndex]+tNewGroup
+                        else:
+                            dGroup2Index[iCurrentGroup]=list(tNewGroup)
+                            print("Divided into : ",[self.get_globalVector(X) for X in dGroup2Index[iCurrentGroup]],dGroup2Index[iCurrentGroup])
+                            sTag=self.get_globalVector(iIndex)
+                            tNewGroup=[iIndex]
+                    iCurrentGroup+=1
+                    dGroup2Index[iCurrentGroup]=list(tNewGroup)
+                    #print("Divided into : ",[self.get_globalVector(X) for X in dGroup2Index[iCurrentGroup]],dGroup2Index[iCurrentGroup])
+                    del dGroup2Index[iGroupId]
+                    break
+        
+        ##DEBUG
+        #for iGroupId in sorted(dGroup2Index):
+            #print([self.get_globalVector(X) for X in dGroup2Index[iGroupId]],dGroup2Index[iGroupId])
+        
         ##ASSIGN_GROUP_VALUE
         for iGroupId in sorted(dGroup2Index):
             #print("iGroupId",dGroup2Index[iGroupId])
             if len(set([self.get_globalVector(X) for X in dGroup2Index[iGroupId] if self.get_globalVector(X) in [">","<"]]))!=1:
-                print("NEAR-ERROR 1726 : different type of variation\n{}\t{}".format([self.get_globalVector(X) for X in dGroup2Index[iGroupId] if self.get_globalVector(X) in [">","<"]],dGroup2Index[iGroupId]))
-                print("Try without group this elements")
-                continue
+                exit("ERROR 1726 : different type of variation\n{}\t{}".format([self.get_globalVector(X) for X in dGroup2Index[iGroupId]],dGroup2Index[iGroupId]))
             else:
                 sTag=[self.get_globalVector(X) for X in dGroup2Index[iGroupId] if self.get_globalVector(X) in [">","<"]][0]
             if len([self.get_globalVector(X) for X in dGroup2Index[iGroupId] if self.get_globalVector(X) not in [">","<"]])==1:
