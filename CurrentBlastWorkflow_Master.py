@@ -114,9 +114,6 @@ def Str2Bool(sString):
 def LoadArgFile(sFile):
     dArgs=ParseArgFile(sFile)
     try:
-        #global ROOTDIR
-        #ROOTDIR=dArgs['ROOTDIR']
-        
         global READCOVER_THRESHOLD
         READCOVER_THRESHOLD=dArgs['READCOVER_THRESHOLD']
         global GENECOVER_THRESHOLD
@@ -191,61 +188,6 @@ def LaunchBashFile(cmdArray):
 def CreateFolder(sFolder):
     if not os.path.isdir(sFolder):
         os.makedirs(sFolder)
-    
-def LoadDatabase(sPath):
-    dDatabase={}
-    sName=""
-    sSeq=""
-    for sLine in open(sPath):
-        sLine=sLine.strip()
-        if ">" in sLine[0]:
-            AddSeqIntoDatabase(dDatabase,sName,sSeq)
-            sSeq=""
-            sName=sLine[1:]
-        else:
-            sSeq+=sLine
-    AddSeqIntoDatabase(dDatabase,sName,sSeq)
-    return dDatabase
-
-def AddSeqIntoDatabase(dDatabase,sName,sSeq):
-    if sName!="":
-        try:
-            oCrash=dDatabase[sName]
-            exit("ERROR 182 : multiple sequence for same name into the database")
-        except KeyError:
-            dDatabase[sName]=sSeq
-    return dDatabase
-
-def ExtractReadFromResultFile(sPath):
-    dRead2ExonQuantity={}
-    bHeader=True
-    for sLine in open(sPath):
-        if bHeader:
-            bHeader=False
-            continue
-        sLine=sLine.strip()
-        tLine=sLine.split("\t")
-        sReadId=tLine[0]
-        sExonPresent=tLine[-1]
-        if bool(int(sExonPresent)):
-            dRead2ExonQuantity[sReadId]=int(sExonPresent)
-    return dRead2ExonQuantity
-
-def BuildLimitedFasta(dList,dDict):
-    sPath="TempFasta"+str(random.random())+".fa"
-    FILE=open(sPath,"w")
-    for sId in dList.keys():
-        FILE.write(">{}\n".format(sId))
-        iBase=1
-        iLineSize=60
-        sSeqContent=dDict[sId]
-        sContent=""
-        while iBase*iLineSize<len(sSeqContent):
-            sContent+=sSeqContent[(iBase-1)*iLineSize:iBase*iLineSize]+"\n"
-            iBase+=1
-        sContent+=sSeqContent[(iBase-1)*iLineSize:]+"\n"
-        FILE.write(sContent)
-    return sPath
 
 ########################################################################
 #MAIN
@@ -309,7 +251,7 @@ if __name__ == "__main__":
             
             #Table
             print("--table...")
-            ExecuteBashCommand("time python {1} -p {0}/{0}.exonerate.paf -t {0} -g {0}/{0}.gff -o {0}/{0}.spliceSummary.tsv".format(
+            ExecuteBashCommand("time python {1} -p {0}/{0}.exonerate.paf -r {0}/{0}.fa.masked -f {0}/megablast.fa -t {0} -g {0}/{0}.gff -o {0}/{0}.spliceSummary.tsv".format(
                 sGeneId,SCRIPT4))
             
             print("WORK ON {} DONE".format(sGeneId))
@@ -322,6 +264,7 @@ if __name__ == "__main__":
                     sCurrentVersionScript,len(dbListOfTarget),YEAR,MONTH,DAY)
     CreateFolder(sFolderPath)
     for sTargetFolder in tFolderList:
+        ExecuteBashCommand("rm {0}/*".format(sFolderPath,sTargetFolder))
         ExecuteBashCommand("mv ./{1} {0}/".format(sFolderPath,sTargetFolder))
     print("DONE")
 

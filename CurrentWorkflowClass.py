@@ -66,6 +66,38 @@ def Fasta2Dict(sFile):
         dResults[sSeqName]=sSeqContent
     return dResults
 
+def ExecuteBashCommand(scriptfile,bFirstLine=True):
+    #print("DEBUG:{}".format(scriptfile))
+    #return None
+    sName="TempCommand"+str(random.random())+".sh"
+    FileTemp=open(sName,"w")
+    FileTemp.write(scriptfile)
+    FileTemp.close()
+
+    tTable=LaunchBashFile(["bash",sName])
+
+    if tTable[0]==0:
+        if tTable[1]:
+            print(tTable[1].decode("utf-8"))
+        print("Bash command done")
+    else:
+        print(tTable[2])
+        print("Bash command fail: {}\nScript bash : {}".format(scriptfile,sName))
+    
+    os.remove(sName)
+
+def LaunchBashFile(cmdArray):
+	sp = subprocess.Popen(cmdArray, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+	out, err = sp.communicate()
+	if err:
+	    print("standard error of subprocess:")
+	    print(err.decode("utf-8"))
+	    #if out:
+            #print("standard output of subprocess:")
+            #print(out.decode("utf-8"))
+	print("returncode of subprocess:", sp.returncode)
+	return [sp.returncode,out,err]
+
 ########################################################################
 #CLASS
 class PseudoBlastMatch:
@@ -1678,9 +1710,12 @@ class TranscriptContent:
 
 class AlignedMatrixContent():
     
-    def __init__(self,sGeneId,sReadPaf,sOutputFile):
+    def __init__(self,sGeneId,sReadPaf,sOutputFile,sFastaFile,sRefFile):
         
         self.size=None
+        
+        self.tr_dict_seq=Fasta2Dict(sFastaFile)
+        self.ref_seq=sorted(Fasta2Dict(sRefFile).values())[0]
         
         self.currentMatrix=[]
         self.matrix_lineName=[]
@@ -1691,6 +1726,7 @@ class AlignedMatrixContent():
         self.blockConfidence={}
         
         self.tr_dict_data={}
+        self.tr_dict_data_alt={}
         self.parse_pafFile(sReadPaf,sGeneId)
         self.setup_matrix()
         
@@ -1699,59 +1735,114 @@ class AlignedMatrixContent():
         self.assign_blockName()
         self.assign_blockConfidence()
         
-        #self.print_globalVector(4)
-        #self.print_globalVector(3)
-        #self.print_globalVector(2)
-        #self.print_globalVector(1)
-        
-        #iDebugLineIndex=40
-        #iStartDebug=2063
-        #iStopDebug=2068
-        #print(self.get_matrix_lineName(iDebugLineIndex))
-        ###print(self.get_submatrix_byLine(iDebugLineIndex,iDebugLineIndex))
-        ##print(self.get_globalVector()[iStartDebug:iStopDebug+1])
-        ##print(self.get_globalPopVector()[iStartDebug:iStopDebug+1])
-        #print(self.get_submatrix_byCol(iStartDebug,iStopDebug)[iDebugLineIndex])
-        ##exit()
-        #print("PHASE 1")
-        #for iDebugLineIndex in range(len(self.get_matrix())):
-            #print(iDebugLineIndex,self.get_matrix_lineName(iDebugLineIndex))
-            #print(self.get_matrix_lineName(iDebugLineIndex))
-            #print(self.get_submatrix_byCol(iStartDebug,iStopDebug)[iDebugLineIndex])
-        #exit()
-        
         self.regroup_globalVector()  #This will modify the matrix!!
         
         self.setup_popVector()
         self.setup_globalVector()
         self.assign_blockName()
         self.assign_blockConfidence()
-        
-        #print("------")
-        ##print(self.get_globalVector()[iStartDebug:iStopDebug+1])
-        ##print(self.get_globalPopVector()[iStartDebug:iStopDebug+1])
-        #print(self.get_submatrix_byCol(iStartDebug,iStopDebug)[iDebugLineIndex])
-        #exit()
-        #print("PHASE 2")
-        #for iDebugLineIndex in range(len(self.get_matrix())):
-            #print(self.get_matrix_lineName(iDebugLineIndex))
-            #print(self.get_submatrix_byCol(iStartDebug,iStopDebug)[iDebugLineIndex])
-        
-        #print(self.get_line_BlockName_Structure(iDebugLineIndex))
-        #exit()
-        
-        print("selfBlock:",self.get_limitedBlockName())
-        print("selfBlockSize:",self.get_blockSize())
-        print("selfBlockCoord:",self.get_blockCoord())
-        print("selfBlockPop:",self.get_blockPop())
-        #for iLineIndex in range(len(self.get_matrix())):
-            #print(self.get_matrix_lineName(iLineIndex))
-            #print(self.get_line_BlockName_Structure(iLineIndex))
-            #self.print_individualVector(self.get_lineName_Vector(iLineIndex))
-            #print(self.get_lineName_Vector(iLineIndex))
-            #exit()
+
+        #print("selfBlock:",self.get_limitedBlockName())
+        #print("selfBlockSize:",self.get_blockSize())
+        #print("selfBlockCoord:",self.get_blockCoord())
+        #print("selfBlockPop:",self.get_blockPop())
             
         self.globalData2tsv(sOutputFile)
+    
+    def get_read_seq(self,sReadName):
+        return self.tr_dict_seq[sReadName]
+        
+    def print_read_seq(self):
+        for iLineIndex in range(len(self.get_matrix())):
+            tLineModel=self.get_line_BlockName_Structure(iLineIndex)
+            print(">"+self.get_matrix_lineName(iLineIndex)+"\n"+self.get_read_seq(self.get_matrix_lineName(iLineIndex)))
+    
+    def apply_correction(self):
+        bMatrixIsModified=True
+        iCorrectionStep=0
+        while bMatrixIsModified:
+            iCorrectionStep+=1
+            bMatrixIsModified=False
+            if self.correct_misalignment_onref():
+                bMatrixIsModified=True
+
+            if bMatrixIsModified:
+                self.regroup_globalVector()
+                self.setup_popVector()
+                self.setup_globalVector()
+                self.assign_blockName()
+                self.assign_blockConfidence()
+                
+                self.globalData2tsv("Intermediate{}.spliceSummary.tsv".format(iCorrectionStep))
+    
+    def correct_misalignment_onref(self):
+        tGroupOfBlock=self.get_limitedBlockName()
+        tGroupOfGroupOfBlock=[]
+        tCurrentGroupOfBlock=[]
+        for sElement in tGroupOfBlock:
+            if sElement=="i":
+                if len(tCurrentGroupOfBlock)!=0:
+                    tGroupOfGroupOfBlock.append(list(tCurrentGroupOfBlock))
+                tCurrentGroupOfBlock=[]
+            elif sElement!=tGroupOfBlock[-1]:
+                tCurrentGroupOfBlock.append(sElement)
+            else:
+                tCurrentGroupOfBlock.append(sElement)
+                tGroupOfGroupOfBlock.append(list(tCurrentGroupOfBlock))
+        print(tGroupOfGroupOfBlock)
+        
+        tSuspiciousBlock=[]
+        for iIndex in range(len(tGroupOfGroupOfBlock)):
+            tCurrentGroupOfBlock=tGroupOfGroupOfBlock[iIndex]
+            tCurrentPop=[self.get_blockPop(X) for X in tCurrentGroupOfBlock]
+            iMaxPop=max(tCurrentPop)
+                        
+            if iIndex==0:
+                if iMaxPop==tCurrentPop[-1]:
+                    continue
+                else:
+                    tCurrentPop=tCurrentPop[-(tCurrentPop[::-1].index(iMaxPop)+1):]
+                    tCurrentGroupOfBlock[:-len(tCurrentPop)]
+            elif iIndex==len(tGroupOfGroupOfBlock)-1:
+                if iMaxPop==tCurrentPop[0]:
+                    continue
+                else:
+                    tCurrentPop=tCurrentPop[:tCurrentPop.index(iMaxPop)+1]
+                    tCurrentGroupOfBlock[-len(tCurrentPop):]
+            
+            #tSuspiciousBlock+=[tCurrentGroupOfBlock[X] for X in range(len(tCurrentPop)) if tCurrentPop[X]==1 or tCurrentPop[X]<=0.1*iMaxPop]
+            tSuspiciousBlock+=[tCurrentGroupOfBlock[X] for X in range(len(tCurrentPop)) if tCurrentPop[X]==1 or tCurrentPop[X]<=0.1*iMaxPop]
+        print(tSuspiciousBlock)
+        
+        if len(tSuspiciousBlock)==0:
+            return False
+        
+        for iLineIndex in range(len(self.get_matrix())):
+            sLineName=self.get_matrix_lineName(iLineIndex)
+            tLineModel=self.get_line_BlockName_Structure(iLineIndex)
+            tCurrentSuspiciousBlock=sorted(set(tLineModel) & set(tSuspiciousBlock))
+                        
+            if len(set(tLineModel) & set(tSuspiciousBlock))==0:
+                #print("{} have no suspicious block".format(sLineName))
+                continue
+            else:
+                print("{} have suspicious block : {}".format(sLineName,tCurrentSuspiciousBlock))
+            
+            print(sLineName)
+            for sBlock in tCurrentSuspiciousBlock:
+                print(self.get_blockCoord(sBlock))
+            print(sLineName)
+            print(self.get_tr_dict_data_alt()[sLineName])
+            print(sLineName)
+            print(self.get_tr_dict_data()[sLineName])
+            
+
+            
+        
+        
+        
+        
+        return False
     
     def get_groupOfBlock(self):
         tBlockName=self.get_line_blockName()
@@ -1868,7 +1959,7 @@ class AlignedMatrixContent():
                         elif iPreviousValue==-1:
                             ## Specific case : gap of size -1 can't have two equivalence
                             for iThisIndex in range(len(tData)):
-                                print(tBlockName[iThisIndex],tLineModel[iPreviousIndex-1])
+                                #print(tBlockName[iThisIndex],tLineModel[iPreviousIndex-1])
                                 if tBlockName[iThisIndex]==tLineModel[iPreviousIndex-1]:
                                     tData[iThisIndex+1]=str(iPreviousValue)
                                     break
@@ -2786,6 +2877,7 @@ class AlignedMatrixContent():
     
     def parse_pafFile(self,sPathFile,sGeneId):
         dRead2Coord={}
+        dRead2GeneCoord={}
         for sLine in open(sPathFile):
             sLine=sLine.strip()
             tLine=sLine.split()
@@ -2799,9 +2891,24 @@ class AlignedMatrixContent():
             sCurrentTrId=dRef2Content["ReadId"]
             if sCurrentTrId not in dRead2Coord:
                 dRead2Coord[sCurrentTrId]={}
+                dRead2GeneCoord[sCurrentTrId]={}
             dRead2Coord[sCurrentTrId][(dRef2Content["ReadStart"],dRef2Content["ReadStop"])]=dRef2Content
+            dRead2GeneCoord[sCurrentTrId][(min(dRef2Content["GeneStart"],dRef2Content["GeneStop"]),max(dRef2Content["GeneStart"],dRef2Content["GeneStop"]))]=dRef2Content
+            
+            #print(dRead2Coord)
+            #print(dRead2GeneCoord)
+            #exit()
+            
+            
         self.set_size(int(dRef2Content["GeneSize"]))
         self.set_tr_dict_data(dRead2Coord)
+        self.set_tr_dict_data_alt(dRead2GeneCoord)
+
+    def set_tr_dict_data_alt(self,dDict):
+        self.tr_dict_data_alt=dDict
+    
+    def get_tr_dict_data_alt(self):
+        return self.tr_dict_data_alt
 
     def set_tr_dict_data(self,dDict):
         self.tr_dict_data=dDict
