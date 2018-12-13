@@ -28,6 +28,8 @@ BSTDOUT=True
 DEBUG_BOOL=False
 DEBUG_READID="ch117_read1370_template_pass_BYK_CB_ONT_1_FAF04998_A"
 
+CORRECT_ALIGN_STEP__EXTAND_VALUE=10
+
 #Exonerate Parsing
 REVERSE_COMP={"A":"T","C":"G","G":"C","T":"A",
                 "a":"t","c":"g","g":"c","t":"a",
@@ -1749,8 +1751,17 @@ class AlignedMatrixContent():
             
         self.globalData2tsv(sOutputFile)
     
-    def get_read_seq(self,sReadName):
-        return self.tr_dict_seq[sReadName]
+    def get_ref_seq(self,dbCoord=False):
+        if dbCoord:
+            return self.ref_seq[dbCoord[0]:dbCoord[1]+1]
+        else:
+            return self.ref_seq
+    
+    def get_read_seq(self,sReadName,dbCoord=False):
+        if dbCoord:
+            return self.tr_dict_seq[sReadName][dbCoord[0]:dbCoord[1]:+1]
+        else:
+            return self.tr_dict_seq[sReadName]
         
     def print_read_seq(self):
         for iLineIndex in range(len(self.get_matrix())):
@@ -1775,22 +1786,22 @@ class AlignedMatrixContent():
                 
                 self.globalData2tsv("Intermediate{}.spliceSummary.tsv".format(iCorrectionStep))
     
-    def correct_misalignment_onref(self):
-        tGroupOfBlock=self.get_limitedBlockName()
+    def make_groupOfBlock(self,tListOfBlock):
         tGroupOfGroupOfBlock=[]
         tCurrentGroupOfBlock=[]
-        for sElement in tGroupOfBlock:
+        for sElement in tListOfBlock:
             if sElement=="i":
                 if len(tCurrentGroupOfBlock)!=0:
                     tGroupOfGroupOfBlock.append(list(tCurrentGroupOfBlock))
                 tCurrentGroupOfBlock=[]
-            elif sElement!=tGroupOfBlock[-1]:
+            elif sElement!=tListOfBlock[-1]:
                 tCurrentGroupOfBlock.append(sElement)
             else:
                 tCurrentGroupOfBlock.append(sElement)
                 tGroupOfGroupOfBlock.append(list(tCurrentGroupOfBlock))
-        print(tGroupOfGroupOfBlock)
-        
+        return tGroupOfGroupOfBlock
+    
+    def get_suspiciousblock(self,tGroupOfBlock,tGroupOfGroupOfBlock):
         tSuspiciousBlock=[]
         for iIndex in range(len(tGroupOfGroupOfBlock)):
             tCurrentGroupOfBlock=tGroupOfGroupOfBlock[iIndex]
@@ -1809,13 +1820,99 @@ class AlignedMatrixContent():
                 else:
                     tCurrentPop=tCurrentPop[:tCurrentPop.index(iMaxPop)+1]
                     tCurrentGroupOfBlock[-len(tCurrentPop):]
-            
-            #tSuspiciousBlock+=[tCurrentGroupOfBlock[X] for X in range(len(tCurrentPop)) if tCurrentPop[X]==1 or tCurrentPop[X]<=0.1*iMaxPop]
             tSuspiciousBlock+=[tCurrentGroupOfBlock[X] for X in range(len(tCurrentPop)) if tCurrentPop[X]==1 or tCurrentPop[X]<=0.1*iMaxPop]
-        print(tSuspiciousBlock)
+        return tSuspiciousBlock
+    
+    def get_PreviousConfidentBlock(self,tSuspiciousBlock,tCurrentSuspiciousBlock,sCurrentBlock,tReadBlock,tGroupOfReadBlock):
+        sPreviousBlock=None
+        if sCurrentBlock==tGroupOfReadBlock[0][0]:
+            sPreviousBlock=None
+        if len(tGroupOfReadBlock[0])>1:
+            if sCurrentBlock==tGroupOfReadBlock[0][1] and isinstance(tGroupOfReadBlock[0][0],int):
+                sPreviousBlock=None
+        iPrevious=-1
+        while sPreviousBlock is None:
+            sCandidat=tReadBlock[tReadBlock.index(sCurrentBlock)+iPrevious]
+            if sCandidat!="i" and sCandidat not in tSuspiciousBlock:
+                sPreviousBlock=sCandidat
+                break
+            iPrevious-=1
+        return sPreviousBlock
+    
+    def get_NextConfidentBlock(self,tSuspiciousBlock,tCurrentSuspiciousBlock,sCurrentBlock,tReadBlock,tGroupOfReadBlock):
+        sNextBlock=None
+        if sCurrentBlock==tGroupOfReadBlock[-1][-1]:
+            sNextBlock=None
+        if len(tGroupOfReadBlock[-1])>1:
+            if sCurrentBlock==tGroupOfReadBlock[-1][-2] and isinstance(tGroupOfReadBlock[-1][-1],int):
+                sNextBlock=None
+        iNext=1
+        while sNextBlock is None:
+            sCandidat=tReadBlock[tReadBlock.index(sCurrentBlock)+iNext]
+            if sCandidat!="i" and sCandidat not in tSuspiciousBlock:
+                sNextBlock=sCandidat
+                break
+            iNext+=1
+        return sNextBlock
+    
+    def get_dbAlignGeneCoord(self,sLineName,sCurrentBlockCoord):
+        tCorrespondingData=[X for X in self.get_tr_dict_data_alt()[sLineName].keys() if sCurrentBlockCoord[0] in range(X[0],X[1]+1) or sCurrentBlockCoord[1] in range(X[0],X[1]+1)]
+        if len(tCorrespondingData)==0:
+            print(self.get_tr_dict_data_alt()[sLineName].keys())
+            exit("Error 1865 : no correspondance between Block and Read Alignment")
+        elif len(tCorrespondingData)!=1:
+            print(self.get_tr_dict_data_alt()[sLineName].keys())
+            exit("Error 1868 : too much correspondance between Block and Read Alignment")
+        return tCorrespondingData[0]
+    
+    def get_alignReadSeq(self,sLineName,dbAlignGeneCoord,sCurrentBlockCoord,iExtand=0):
+        dTempDict=self.get_tr_dict_data_alt()[sLineName][dbAlignGeneCoord]
+                
+        iGeneStart=dTempDict["GeneStart"]
+        iGeneStop=dTempDict["GeneStop"]
+        iReadStart=dTempDict["ReadStart"]
+        iReadStop=dTempDict["ReadStop"]
+        sGeneStrand=dTempDict["Strand"]
+        #print("Ref Strand {}".format(sGeneStrand))
+        #print("Align Gene Coord {} to {}".format(iGeneStart,iGeneStop))
+        #print("Align Read Coord {} to {}".format(iReadStart,iReadStop))
+        iDeltaStart=iGeneStart-sCurrentBlockCoord[0]
+        iDeltaStop=iGeneStop-sCurrentBlockCoord[1]
+        #print("DeltaStart {} DeltaStop {}".format(iDeltaStart,iDeltaStop))
+        if sGeneStrand=="+":
+            iNewReadStart=iReadStart-iDeltaStart
+            iNewReadStop=iReadStop-iDeltaStop
+            #print("NewCoord",iNewReadStart,iNewReadStop)
+            ##print("SeqRead",len(self.get_read_seq(sLineName,(iNewReadStart,iNewReadStop))),self.get_read_seq(sLineName,(iReadStart,iReadStop)))
+            #print("SeqRead",len(self.get_read_seq(sLineName,(iNewReadStart,iNewReadStop))),self.get_read_seq(sLineName,(iNewReadStart,iNewReadStop)))
+        else:
+            iNewReadStart=iReadStart+iDeltaStop
+            iNewReadStop=iReadStop+iDeltaStart
+        #print("NewCoord",iNewReadStart,iNewReadStop)
+        ##print("SeqRead",len(self.get_read_seq(sLineName,(iNewReadStart,iNewReadStop))),self.get_read_seq(sLineName,(iReadStart,iReadStop)))
+        #print("SeqRead",len(self.get_read_seq(sLineName,(iNewReadStart-iExtand,iNewReadStop+iExtand))),self.get_read_seq(sLineName,(iNewReadStart-iExtand,iNewReadStop+iExtand)))
+        #print("Extand SeqRead",self.get_read_seq(sLineName,(iNewReadStart-10,iNewReadStop+10)))
+        return self.get_read_seq(sLineName,(iNewReadStart-iExtand,iNewReadStop+iExtand))
         
+    def get_alignGeneSeq(self,tPotentialTarget,iExtand=0):
+        dTarget2Seq={}
+        for sTargetId in tPotentialTarget:
+            dTarget2Seq[sTargetId]=self.get_ref_seq((self.get_blockCoord(sTargetId)[0]-iExtand,self.get_blockCoord(sTargetId)[1]+iExtand))
+        return dTarget2Seq
+    
+    def correct_misalignment_onref(self):
+        tGroupOfBlock=self.get_limitedBlockName()
+        tGroupOfGroupOfBlock=self.make_groupOfBlock(tGroupOfBlock)
+        print("tGroupOfGroupOfBlock",tGroupOfGroupOfBlock)
+        
+        tSuspiciousBlock=self.get_suspiciousblock(tGroupOfBlock,tGroupOfGroupOfBlock)
         if len(tSuspiciousBlock)==0:
             return False
+        else:
+            print("There is suspicious block : {}".format(tSuspiciousBlock))
+        
+        tGeneBlock=self.get_limitedBlockName()
+        print("tGeneBlock",tGeneBlock)
         
         for iLineIndex in range(len(self.get_matrix())):
             sLineName=self.get_matrix_lineName(iLineIndex)
@@ -1823,18 +1920,42 @@ class AlignedMatrixContent():
             tCurrentSuspiciousBlock=sorted(set(tLineModel) & set(tSuspiciousBlock))
                         
             if len(set(tLineModel) & set(tSuspiciousBlock))==0:
-                #print("{} have no suspicious block".format(sLineName))
                 continue
             else:
                 print("{} have suspicious block : {}".format(sLineName,tCurrentSuspiciousBlock))
             
-            print(sLineName)
-            for sBlock in tCurrentSuspiciousBlock:
-                print(self.get_blockCoord(sBlock))
-            print(sLineName)
-            print(self.get_tr_dict_data_alt()[sLineName])
-            print(sLineName)
-            print(self.get_tr_dict_data()[sLineName])
+            #print(sLineName)
+            tReadBlock=self.get_line_BlockName_Structure(iLineIndex)
+            #print("tReadBlock",tReadBlock)
+            tGroupOfReadBlock=self.make_groupOfBlock(tReadBlock)
+            #print("tGroupOfReadBlock",tGroupOfReadBlock)
+            for sCurrentBlock in tCurrentSuspiciousBlock:
+                #print(sCurrentBlock,self.get_blockCoord(sCurrentBlock))
+                
+                sPreviousBlock=self.get_PreviousConfidentBlock(tSuspiciousBlock,tCurrentSuspiciousBlock,sCurrentBlock,tReadBlock,tGroupOfReadBlock)
+                sNextBlock=self.get_NextConfidentBlock(tSuspiciousBlock,tCurrentSuspiciousBlock,sCurrentBlock,tReadBlock,tGroupOfReadBlock)
+                #print("{0} chained into {1} {0} {2}".format(sCurrentBlock,sPreviousBlock,sNextBlock))
+                
+                if sPreviousBlock is not None and sNextBlock is not None:
+                    tPotentialTarget=[X for X in tGeneBlock[tGeneBlock.index(sPreviousBlock)+1:tGeneBlock.index(sNextBlock)] if X!="i" and not isinstance(X,int) and X not in tSuspiciousBlock]
+                elif sPreviousBlock is None and sNextBlock is not None:
+                    tPotentialTarget=[X for X in tGeneBlock[0:tGeneBlock.index(sNextBlock)] if X!="i" and not isinstance(X,int) and X not in tSuspiciousBlock]
+                elif sPreviousBlock is not None and sNextBlock is None:
+                    tPotentialTarget=[X for X in tGeneBlock[tGeneBlock.index(sPreviousBlock)+1:] if X!="i" and not isinstance(X,int) and X not in tSuspiciousBlock]
+                else:
+                    exit("Error 1904 : no confident block in the read")
+                
+                print("Potential target are {}".format(tPotentialTarget))
+                
+                dTarget2Seq=self.get_alignGeneSeq(tPotentialTarget,CORRECT_ALIGN_STEP__EXTAND_VALUE)
+                print(dTarget2Seq)
+                
+                sCurrentBlockCoord=self.get_blockCoord(sCurrentBlock)
+                dbAlignGeneCoord=self.get_dbAlignGeneCoord(sLineName,sCurrentBlockCoord)
+                sAlignReadSeq=self.get_alignReadSeq(sLineName,dbAlignGeneCoord,sCurrentBlockCoord,CORRECT_ALIGN_STEP__EXTAND_VALUE)
+                print(sCurrentBlock,":",sAlignReadSeq)
+                
+                
             
 
             
