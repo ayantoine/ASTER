@@ -5,6 +5,8 @@ import os
 import sys
 import re
 import copy
+import random
+import subprocess
 
 import inspect
 
@@ -29,6 +31,8 @@ DEBUG_BOOL=False
 DEBUG_READID="ch117_read1370_template_pass_BYK_CB_ONT_1_FAF04998_A"
 
 CORRECT_ALIGN_STEP__EXTAND_VALUE=10
+LALIGN_LAUNCHER="~/Git/fasta36/bin/lalign36"
+LALIGN_THRESHOLD=80
 
 #Exonerate Parsing
 REVERSE_COMP={"A":"T","C":"G","G":"C","T":"A",
@@ -51,6 +55,50 @@ GFF_COLUMN=["seqname","source","feature","start","end","score","strand","frame",
 PAF_COLUMN=["ReadId","ReadSize","ReadStart","ReadStop","Strand","GeneId","GeneSize","GeneStart","GeneStop","NbrNotIndel","AlignSize","Quality"]
 ########################################################################
 #Function
+def PaseLalignResult(sFile):
+    dResult={}
+    bQueryLine=False
+    bHitFirstLine=False
+    bHitSecondLine=False
+    for sLine in open(sFile):
+        sLine=sLine.strip()
+        if "Query:" in sLine:
+            bQueryLine=True
+            continue
+        elif bQueryLine:
+            bQueryLine=False
+            tLine=sLine.split(" ")
+            iQuerySize=int(tLine[-2])
+            #print("iQuerySize",iQuerySize)
+        elif sLine[0:2]==">>":
+            tLine=sLine.split(" ")
+            sRef=tLine[0].replace(">>","")
+            iRefSize=int(tLine[-2].replace("(",""))
+            #print("iRefSize",iRefSize)
+            bHitFirstLine=True
+        elif bHitFirstLine:
+            bHitFirstLine=False
+            bHitSecondLine=True
+        elif bHitSecondLine:
+            bHitSecondLine=False
+            fIdentity=float(sLine.split("%")[0])
+            sTemp=sLine.split("(")[-1].replace(")","")
+            sQueryPart=sTemp.split(":")[0]
+            sRefPart=sTemp.split(":")[-1]
+            iQueryStart=int(sQueryPart.split("-")[0])
+            iQueryStop=int(sQueryPart.split("-")[1])
+            iRefStart=int(sRefPart.split("-")[0])
+            iRefStop=int(sRefPart.split("-")[1])
+            return {"QueryTotalSize":iQuerySize,
+                    "Ref":sRef,"RefTotalSize":iRefSize,
+                    "QueryStart":iQueryStart,"QueryStop":iQueryStop,
+                    "RefStart":iRefStart,"RefStop":iRefStop
+                    }
+        
+    
+    
+    return dResult
+
 def Fasta2Dict(sFile):
     dResults={}
     sSeqName=""
@@ -67,6 +115,14 @@ def Fasta2Dict(sFile):
     if sSeqName!="":
         dResults[sSeqName]=sSeqContent
     return dResults
+
+def WriteTempFasta(dDict):
+    sName="TempFasta"+str(random.random())+".fa"
+    FileTemp=open(sName,"w")
+    for sKey in dDict:
+        FileTemp.write(">"+sKey+"\n"+dDict[sKey]+"\n")
+    FileTemp.close()
+    return sName
 
 def ExecuteBashCommand(scriptfile,bFirstLine=True):
     #print("DEBUG:{}".format(scriptfile))
@@ -1715,6 +1771,7 @@ class AlignedMatrixContent():
     def __init__(self,sGeneId,sReadPaf,sOutputFile,sFastaFile,sRefFile):
         
         self.size=None
+        self.gene_id=sGeneId
         
         self.tr_dict_seq=Fasta2Dict(sFastaFile)
         self.ref_seq=sorted(Fasta2Dict(sRefFile).values())[0]
@@ -1750,6 +1807,9 @@ class AlignedMatrixContent():
         #print("selfBlockPop:",self.get_blockPop())
             
         self.globalData2tsv(sOutputFile)
+    
+    def get_geneId(self):
+        return self.gene_id
     
     def get_ref_seq(self,dbCoord=False):
         if dbCoord:
@@ -1873,25 +1933,14 @@ class AlignedMatrixContent():
         iReadStart=dTempDict["ReadStart"]
         iReadStop=dTempDict["ReadStop"]
         sGeneStrand=dTempDict["Strand"]
-        #print("Ref Strand {}".format(sGeneStrand))
-        #print("Align Gene Coord {} to {}".format(iGeneStart,iGeneStop))
-        #print("Align Read Coord {} to {}".format(iReadStart,iReadStop))
         iDeltaStart=iGeneStart-sCurrentBlockCoord[0]
         iDeltaStop=iGeneStop-sCurrentBlockCoord[1]
-        #print("DeltaStart {} DeltaStop {}".format(iDeltaStart,iDeltaStop))
         if sGeneStrand=="+":
             iNewReadStart=iReadStart-iDeltaStart
             iNewReadStop=iReadStop-iDeltaStop
-            #print("NewCoord",iNewReadStart,iNewReadStop)
-            ##print("SeqRead",len(self.get_read_seq(sLineName,(iNewReadStart,iNewReadStop))),self.get_read_seq(sLineName,(iReadStart,iReadStop)))
-            #print("SeqRead",len(self.get_read_seq(sLineName,(iNewReadStart,iNewReadStop))),self.get_read_seq(sLineName,(iNewReadStart,iNewReadStop)))
         else:
             iNewReadStart=iReadStart+iDeltaStop
             iNewReadStop=iReadStop+iDeltaStart
-        #print("NewCoord",iNewReadStart,iNewReadStop)
-        ##print("SeqRead",len(self.get_read_seq(sLineName,(iNewReadStart,iNewReadStop))),self.get_read_seq(sLineName,(iReadStart,iReadStop)))
-        #print("SeqRead",len(self.get_read_seq(sLineName,(iNewReadStart-iExtand,iNewReadStop+iExtand))),self.get_read_seq(sLineName,(iNewReadStart-iExtand,iNewReadStop+iExtand)))
-        #print("Extand SeqRead",self.get_read_seq(sLineName,(iNewReadStart-10,iNewReadStop+10)))
         return self.get_read_seq(sLineName,(iNewReadStart-iExtand,iNewReadStop+iExtand))
         
     def get_alignGeneSeq(self,tPotentialTarget,iExtand=0):
@@ -1922,15 +1971,18 @@ class AlignedMatrixContent():
             if len(set(tLineModel) & set(tSuspiciousBlock))==0:
                 continue
             else:
-                print("{} have suspicious block : {}".format(sLineName,tCurrentSuspiciousBlock))
+                print("{} have {} suspicious block on {}: {}".format(sLineName,len(tCurrentSuspiciousBlock),self.get_geneId(),tCurrentSuspiciousBlock))
             
-            #print(sLineName)
+            print(sLineName)
             tReadBlock=self.get_line_BlockName_Structure(iLineIndex)
-            #print("tReadBlock",tReadBlock)
+            print("tReadBlock",tReadBlock)
             tGroupOfReadBlock=self.make_groupOfBlock(tReadBlock)
-            #print("tGroupOfReadBlock",tGroupOfReadBlock)
+            print("tGroupOfReadBlock",tGroupOfReadBlock)
             for sCurrentBlock in tCurrentSuspiciousBlock:
-                #print(sCurrentBlock,self.get_blockCoord(sCurrentBlock))
+                print(sCurrentBlock,self.get_blockCoord(sCurrentBlock))
+                
+                if sCurrentBlock==tReadBlock[0] or (sCurrentBlock==tReadBlock[1] and isinstance(tReadBlock[0],int)):
+                    continue
                 
                 sPreviousBlock=self.get_PreviousConfidentBlock(tSuspiciousBlock,tCurrentSuspiciousBlock,sCurrentBlock,tReadBlock,tGroupOfReadBlock)
                 sNextBlock=self.get_NextConfidentBlock(tSuspiciousBlock,tCurrentSuspiciousBlock,sCurrentBlock,tReadBlock,tGroupOfReadBlock)
@@ -1948,20 +2000,24 @@ class AlignedMatrixContent():
                 print("Potential target are {}".format(tPotentialTarget))
                 
                 dTarget2Seq=self.get_alignGeneSeq(tPotentialTarget,CORRECT_ALIGN_STEP__EXTAND_VALUE)
-                print(dTarget2Seq)
+                #print(dTarget2Seq)
                 
                 sCurrentBlockCoord=self.get_blockCoord(sCurrentBlock)
                 dbAlignGeneCoord=self.get_dbAlignGeneCoord(sLineName,sCurrentBlockCoord)
                 sAlignReadSeq=self.get_alignReadSeq(sLineName,dbAlignGeneCoord,sCurrentBlockCoord,CORRECT_ALIGN_STEP__EXTAND_VALUE)
-                print(sCurrentBlock,":",sAlignReadSeq)
+                #print(sCurrentBlock,":",sAlignReadSeq)
+                
+                #sTempFastaRead=WriteTempFasta({sCurrentBlock:sAlignReadSeq})
+                #sTempFastaRef=WriteTempFasta(dTarget2Seq)
+                #sTempResult="TempLALIGN"+str(random.random())+".out"
+                
+                #ExecuteBashCommand("{0} {1} {2} > {3}".format(LALIGN_LAUNCHER,sTempFastaRead,sTempFastaRef,sTempResult))
+                #dResult=PaseLalignResult(sTempResult)
+                #print(dResult)
                 
                 
-            
-
-            
-        
-        
-        
+                #exit()
+                
         
         return False
     
