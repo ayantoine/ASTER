@@ -1892,8 +1892,11 @@ class AlignedMatrixContent():
                 sPreviousBlock=None
         iPrevious=-1
         while sPreviousBlock is None:
+            if tReadBlock.index(sCurrentBlock)+iPrevious<0:
+                break
             sCandidat=tReadBlock[tReadBlock.index(sCurrentBlock)+iPrevious]
-            if sCandidat!="i" and sCandidat not in tSuspiciousBlock:
+            #print("sCandidat",sCandidat)
+            if sCandidat!="i" and sCandidat not in tSuspiciousBlock and not isinstance(sCandidat,int):
                 sPreviousBlock=sCandidat
                 break
             iPrevious-=1
@@ -1908,8 +1911,11 @@ class AlignedMatrixContent():
                 sNextBlock=None
         iNext=1
         while sNextBlock is None:
-            sCandidat=tReadBlock[tReadBlock.index(sCurrentBlock)+iNext]
-            if sCandidat!="i" and sCandidat not in tSuspiciousBlock:
+            try:
+                sCandidat=tReadBlock[tReadBlock.index(sCurrentBlock)+iNext]
+            except IndexError:
+                break
+            if sCandidat!="i" and sCandidat not in tSuspiciousBlock and not isinstance(sCandidat,int):
                 sNextBlock=sCandidat
                 break
             iNext+=1
@@ -1986,7 +1992,7 @@ class AlignedMatrixContent():
                 
                 sPreviousBlock=self.get_PreviousConfidentBlock(tSuspiciousBlock,tCurrentSuspiciousBlock,sCurrentBlock,tReadBlock,tGroupOfReadBlock)
                 sNextBlock=self.get_NextConfidentBlock(tSuspiciousBlock,tCurrentSuspiciousBlock,sCurrentBlock,tReadBlock,tGroupOfReadBlock)
-                #print("{0} chained into {1} {0} {2}".format(sCurrentBlock,sPreviousBlock,sNextBlock))
+                print("{0} chained into {1} {0} {2}".format(sCurrentBlock,sPreviousBlock,sNextBlock))
                 
                 if sPreviousBlock is not None and sNextBlock is not None:
                     tPotentialTarget=[X for X in tGeneBlock[tGeneBlock.index(sPreviousBlock)+1:tGeneBlock.index(sNextBlock)] if X!="i" and not isinstance(X,int) and X not in tSuspiciousBlock]
@@ -1997,26 +2003,36 @@ class AlignedMatrixContent():
                 else:
                     exit("Error 1904 : no confident block in the read")
                 
+                if len(tPotentialTarget)==0:
+                    print("No potential target. Skip.")
+                    continue
+                
                 print("Potential target are {}".format(tPotentialTarget))
                 
                 dTarget2Seq=self.get_alignGeneSeq(tPotentialTarget,CORRECT_ALIGN_STEP__EXTAND_VALUE)
-                #print(dTarget2Seq)
+                print(dTarget2Seq)
                 
                 sCurrentBlockCoord=self.get_blockCoord(sCurrentBlock)
                 dbAlignGeneCoord=self.get_dbAlignGeneCoord(sLineName,sCurrentBlockCoord)
                 sAlignReadSeq=self.get_alignReadSeq(sLineName,dbAlignGeneCoord,sCurrentBlockCoord,CORRECT_ALIGN_STEP__EXTAND_VALUE)
-                #print(sCurrentBlock,":",sAlignReadSeq)
+                print(sCurrentBlock,":",sAlignReadSeq)
                 
-                #sTempFastaRead=WriteTempFasta({sCurrentBlock:sAlignReadSeq})
-                #sTempFastaRef=WriteTempFasta(dTarget2Seq)
-                #sTempResult="TempLALIGN"+str(random.random())+".out"
+                sTempFastaRead=WriteTempFasta({sCurrentBlock:sAlignReadSeq})
+                sTempFastaRef=WriteTempFasta(dTarget2Seq)
+                sTempResult="TempLALIGN"+str(random.random())+".out"
                 
-                #ExecuteBashCommand("{0} {1} {2} > {3}".format(LALIGN_LAUNCHER,sTempFastaRead,sTempFastaRef,sTempResult))
-                #dResult=PaseLalignResult(sTempResult)
-                #print(dResult)
+                ExecuteBashCommand("{0} {1} {2} > {3}".format(LALIGN_LAUNCHER,sTempFastaRead,sTempFastaRef,sTempResult))
+                dResult=PaseLalignResult(sTempResult)
+                print(dResult)
+                
+                if len(dResult)==0:
+                    print("No potential alignment. Skip.")
+                    continue
+                    
+                print("Todo on this : ",self.get_geneId())
                 
                 
-                #exit()
+                
                 
         
         return False

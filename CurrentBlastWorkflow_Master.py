@@ -264,8 +264,8 @@ if __name__ == "__main__":
                     sCurrentVersionScript,len(dbListOfTarget),YEAR,MONTH,DAY)
     CreateFolder(sFolderPath)
     for sTargetFolder in tFolderList:
-        ExecuteBashCommand("rm {0}/*".format(sFolderPath,sTargetFolder))
         ExecuteBashCommand("mv ./{1} {0}/".format(sFolderPath,sTargetFolder))
+        #ExecuteBashCommand("rm {0}/*".format(sFolderPath,sTargetFolder))
     print("DONE")
 
 ########################################################################    
