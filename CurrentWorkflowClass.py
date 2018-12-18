@@ -2025,18 +2025,94 @@ class AlignedMatrixContent():
                 dResult=PaseLalignResult(sTempResult)
                 print(dResult)
                 
+                for sFile in [sTempFastaRead,sTempFastaRef,sTempResult]:
+                    ExecuteBashCommand("rm {}".format(sFile))
+                
                 if len(dResult)==0:
                     print("No potential alignment. Skip.")
                     continue
-                    
-                print("Todo on this : ",self.get_geneId())
                 
+                ##Alignment have 1 solution.
+                #1- Erase old Read data concerning CurrentBlock
+                dbNeighboursMissing=self.erase_lineBlock(sCurrentBlock,iLineIndex)
+                #2- Update Read data concerning NewBlock
+                self.update_alignmentMatrix(dResult,dbNeighboursMissing,iLineIndex)
                 
+                return True
                 
-                
-        
         return False
     
+    def update_alignmentMatrix(self,dDict,dbMissing,iLineIndex):
+        ##dDict as : {'QueryStart': 37, 'RefStart': 7, 'QueryStop': 11, 'QueryTotalSize': 42, 'Ref': 'O', 'RefTotalSize': 47, 'RefStop': 37}
+        bAllReadCover=False
+        iAlignedReadSize=abs(dDict["QueryStop"]-dDict["QueryStart"])+1
+        iReadCoreSize=dDict["QueryTotalSize"]-2*CORRECT_ALIGN_STEP__EXTAND_VALUE
+        if iAlignedReadSize>=iReadCoreSize:
+            bAllReadCover=True
+        
+        bAllGeneCover=False
+        iAlignedGeneSize=abs(dDict["RefStop"]-dDict["RefStart"])+1
+        iGeneCoreSize=dDict["RefTotalSize"]-2*CORRECT_ALIGN_STEP__EXTAND_VALUE
+        if iAlignedGeneSize>=iGeneCoreSize:
+            bAllGeneCover=True
+        sGeneBlock=dDict["Ref"]
+        dbGeneCoord=self.get_blockCoord(sGeneBlock)
+            
+        if bAllGeneCover and bAllReadCover:
+            ##Convert all in the Gene block into 1
+            self.update_lineBlock(iLineIndex,dbGeneCoord[0],dbGeneCoord[1],dbMissing[0],dbMissing[-1])
+            print("Tag 2063 : succesfull modification")
+        if not bAllGeneCover and bAllReadCover:
+            ##Convert the aligned Gene block into 1
+            iRelativeGeneStart=max(dDict["RefStart"],CORRECT_ALIGN_STEP__EXTAND_VALUE)-CORRECT_ALIGN_STEP__EXTAND_VALUE
+            iRelativeGeneStop=min(dDict["RefTotalSize"]-CORRECT_ALIGN_STEP__EXTAND_VALUE,dDict["RefStop"])-CORRECT_ALIGN_STEP__EXTAND_VALUE
+            self.update_lineBlock(iLineIndex,dbGeneCoord[0]+iRelativeGeneStart,dbGeneCoord[0]+iRelativeGeneStop,dbMissing[0],dbMissing[-1])
+            print("Tag 2063 : succesfull modification")
+        if bAllGeneCover and not bAllReadCover:
+            exit("Error 2065 : bAllGeneCover + not bAllReadCover")
+        if not bAllGeneCover and not bAllReadCover:
+            exit("Error 2068 : not bAllGeneCover + not bAllReadCover")
+            
+            
+        
+    def update_lineBlock(self,iLineIndex,iStart,iStop,iPreviousStartValue=None,iNextStopValue=None):
+        for iColIndex in range(iStart,iStop+1):
+            self.get_matrix()[iLineIndex][iColIndex]=1
+        if iPreviousStartValue is not None:
+            if self.get_matrix()[iLineIndex][iStart-1]==0:
+                self.get_matrix()[iLineIndex][iStart-1]=iPreviousStartValue
+            else:
+                exit("Error 2070 : iPreviousStartValue is not empty")
+        if iNextStopValue is not None:
+            if self.get_matrix()[iLineIndex][iStop+1]==0:
+                self.get_matrix()[iLineIndex][iStop+1]=iNextStopValue
+            else:
+                exit("Error 2076 : iPreviousStartValue is not empty")
+    
+    def erase_lineBlock(self,sBlockName,iLineIndex):
+        dbBlockCoord=self.get_blockCoord(sBlockName)
+        iBlockStart=dbBlockCoord[0]
+        iBlockStop=dbBlockCoord[1]
+        iBlockPreviousStartCoord=iBlockStart-1
+        iBlockNextStopCoord=iBlockStop+1
+        
+        for iColIndex in range(iBlockStart,iBlockStop+1):
+            self.get_matrix()[iLineIndex][iColIndex]=0
+        
+        iPreviousValue=self.get_matrix()[iLineIndex][iBlockPreviousStartCoord]
+        if iPreviousValue<0:
+            self.get_matrix()[iLineIndex][iBlockPreviousStartCoord]=0
+        else:
+            iPreviousValue=None
+        
+        iNextValue=self.get_matrix()[iLineIndex][iBlockNextStopCoord]
+        if iNextValue<0:
+            self.get_matrix()[iLineIndex][iBlockNextStopCoord]=0
+        else:
+            iNextValue=None
+            
+        return (iPreviousValue,iNextValue)
+
     def get_groupOfBlock(self):
         tBlockName=self.get_line_blockName()
         dBlock2Group={}
