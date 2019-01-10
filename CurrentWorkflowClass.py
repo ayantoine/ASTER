@@ -30,7 +30,7 @@ BSTDOUT=True
 DEBUG_BOOL=False
 DEBUG_READID="ch117_read1370_template_pass_BYK_CB_ONT_1_FAF04998_A"
 
-CORRECT_ALIGN_STEP__EXTAND_VALUE=10
+CORRECT_ALIGN_STEP__EXTAND_VALUE=0
 LALIGN_LAUNCHER="~/Git/fasta36/bin/lalign36"
 LALIGN_THRESHOLD=80
 
@@ -55,49 +55,74 @@ GFF_COLUMN=["seqname","source","feature","start","end","score","strand","frame",
 PAF_COLUMN=["ReadId","ReadSize","ReadStart","ReadStop","Strand","GeneId","GeneSize","GeneStart","GeneStop","NbrNotIndel","AlignSize","Quality"]
 ########################################################################
 #Function
-def PaseLalignResult(sFile):
-    dResult={}
-    bQueryLine=False
-    bHitFirstLine=False
-    bHitSecondLine=False
+def GetReverseComplement(sString):
+    #print(sString)
+    #print("".join([REVERSE_COMP[X] for X in sString[::-1]]))
+    return "".join([REVERSE_COMP[X] for X in sString[::-1]])
+
+def ParseLalignResult(sFile,sReadBlock):
+    bTrackingAlignment=False
+    iAlignmentIndex=0
+    sReadString=""
+    sGeneString=""
+    sAlignString=""
     for sLine in open(sFile):
         sLine=sLine.strip()
-        if "Query:" in sLine:
-            bQueryLine=True
+        if ">>>" in sLine:
+            tLine=sLine.split(" ")
+            iReadSize=int(tLine[-2])
+        elif ">>" in sLine:
+            tLine=re.split("[>< ()]",sLine.replace(">>",""))
+            sGeneBlock=tLine[0]
+            iGeneSize=int(tLine[-3])
+        elif "identity" in sLine:
+            tLine=re.split("[%>< ():-]",sLine)
+            iReadStart=int(tLine[-5])
+            iReadStop=int(tLine[-4])
+            iGeneStart=int(tLine[-3])
+            iGeneStop=int(tLine[-2])
+            iAlignSize=int(tLine[-9])
+            bTrackingAlignment=True
             continue
-        elif bQueryLine:
-            bQueryLine=False
-            tLine=sLine.split(" ")
-            iQuerySize=int(tLine[-2])
-            #print("iQuerySize",iQuerySize)
-        elif sLine[0:2]==">>":
-            tLine=sLine.split(" ")
-            sRef=tLine[0].replace(">>","")
-            iRefSize=int(tLine[-2].replace("(",""))
-            #print("iRefSize",iRefSize)
-            bHitFirstLine=True
-        elif bHitFirstLine:
-            bHitFirstLine=False
-            bHitSecondLine=True
-        elif bHitSecondLine:
-            bHitSecondLine=False
-            fIdentity=float(sLine.split("%")[0])
-            sTemp=sLine.split("(")[-1].replace(")","")
-            sQueryPart=sTemp.split(":")[0]
-            sRefPart=sTemp.split(":")[-1]
-            iQueryStart=int(sQueryPart.split("-")[0])
-            iQueryStop=int(sQueryPart.split("-")[1])
-            iRefStart=int(sRefPart.split("-")[0])
-            iRefStop=int(sRefPart.split("-")[1])
-            return {"QueryTotalSize":iQuerySize,
-                    "Ref":sRef,"RefTotalSize":iRefSize,
-                    "QueryStart":iQueryStart,"QueryStop":iQueryStop,
-                    "RefStart":iRefStart,"RefStop":iRefStop
+        elif "query   sequences" in sLine:
+            bTrackingAlignment=False
+            if iReadStart>iReadStop:
+                sStrand="-"
+                iReadStart, iReadStop = iReadStop, iReadStart
+            else:
+                sStrand="+"
+            iAlignGap=sReadString.count("-")+sGeneString.count("-")
+            iAlignIdentity=iAlignSize-sAlignString.count(" ")
+            return {
+                    "ReadId":sReadBlock,
+                    "ReadSize":iReadSize,
+                    "ReadStart":iReadStart,
+                    "ReadStop":iReadStop,
+                    "Strand":sStrand,
+                    "GeneId":sGeneBlock,
+                    "GeneSize":iGeneSize,
+                    "GeneStart":iGeneStart,
+                    "GeneStop":iGeneStop,
+                    "AlignIdentity":iAlignIdentity,
+                    "AlignGap":iAlignGap,
+                    "AlignSize":iAlignSize,
+                    "GeneString":sGeneString,
+                    "ReadString":sReadString,
+                    "AlignString":sAlignString
                     }
-        
-    
-    
-    return dResult
+        elif bTrackingAlignment:
+            tLine=sLine.split(" ")
+            if iAlignmentIndex==0:
+                if tLine[0]==sReadBlock:
+                    sReadString+=tLine[-1]
+                    iAlignmentIndex=1
+            elif iAlignmentIndex==1:
+                #print("____",sLine,"_____")
+                sAlignString+=sLine.replace(":","|")
+                iAlignmentIndex=2
+            elif iAlignmentIndex==2:
+                sGeneString+=tLine[-1]
+                iAlignmentIndex=0
 
 def Fasta2Dict(sFile):
     dResults={}
@@ -1768,7 +1793,9 @@ class TranscriptContent:
 
 class AlignedMatrixContent():
     
-    def __init__(self,sGeneId,sReadPaf,sOutputFile,sFastaFile,sRefFile):
+    def __init__(self,sGeneId,sReadXml,sOutputFile,sFastaFile,sRefFile):
+        
+        #sReadPaf=sReadXml.replace("xml","paf")
         
         self.size=None
         self.gene_id=sGeneId
@@ -1786,8 +1813,15 @@ class AlignedMatrixContent():
         
         self.tr_dict_data={}
         self.tr_dict_data_alt={}
-        self.parse_pafFile(sReadPaf,sGeneId)
+        self.parse_xmlFile(sReadXml,sGeneId)
+        #print(self.get_tr_dict_data())
+        #self.parse_pafFile(sReadPaf,sGeneId)
+        #print(self.get_tr_dict_data())
+        ##exit()
         self.setup_matrix()
+        
+        #print(self.get_submatrix_byLine(2,2))
+        #exit()
         
         self.setup_popVector()
         self.setup_globalVector()
@@ -1931,9 +1965,33 @@ class AlignedMatrixContent():
             exit("Error 1868 : too much correspondance between Block and Read Alignment")
         return tCorrespondingData[0]
     
-    def get_alignReadSeq(self,sLineName,dbAlignGeneCoord,sCurrentBlockCoord,iExtand=0):
+    #def get_alignReadSeq(self,sLineName,dbAlignGeneCoord,sCurrentBlockCoord,iExtand=0):
+        #dTempDict=self.get_tr_dict_data_alt()[sLineName][dbAlignGeneCoord]
+        
+        #iGeneStart=dTempDict["GeneStart"]
+        #iGeneStop=dTempDict["GeneStop"]
+        #iReadStart=dTempDict["ReadStart"]
+        #iReadStop=dTempDict["ReadStop"]
+        #sGeneStrand=dTempDict["Strand"]
+        #iDeltaStart=iGeneStart-sCurrentBlockCoord[0]
+        #iDeltaStop=iGeneStop-sCurrentBlockCoord[1]
+        #if sGeneStrand=="+":
+            #iNewReadStart=iReadStart-iDeltaStart
+            #iNewReadStop=iReadStop-iDeltaStop
+        #else:
+            #iNewReadStart=iReadStart+iDeltaStop
+            #iNewReadStop=iReadStop+iDeltaStart
+        #return self.get_read_seq(sLineName,(iNewReadStart-iExtand,iNewReadStop+iExtand))
+    
+    def extract_alignReadData(self,sLineName,dbAlignGeneCoord,sCurrentBlockCoord):
         dTempDict=self.get_tr_dict_data_alt()[sLineName][dbAlignGeneCoord]
-                
+        sReadId=dTempDict["ReadId"]
+        iReadSize=dTempDict["ReadSize"]
+        sStrand=dTempDict["Strand"]
+        sGeneId=dTempDict["GeneId"]
+        iGeneSize=dTempDict["GeneSize"]
+        print(dTempDict)
+        
         iGeneStart=dTempDict["GeneStart"]
         iGeneStop=dTempDict["GeneStop"]
         iReadStart=dTempDict["ReadStart"]
@@ -1947,7 +2005,142 @@ class AlignedMatrixContent():
         else:
             iNewReadStart=iReadStart+iDeltaStop
             iNewReadStop=iReadStop+iDeltaStart
-        return self.get_read_seq(sLineName,(iNewReadStart-iExtand,iNewReadStop+iExtand))
+        
+        ##Warning: on dTempDict, ReadString with Strand- is in ReverseComplement to the real Read seq in fasta
+        if sGeneStrand=="+":
+            exit("TODO 2001")
+        else:
+            sDirectUpstreamExtractedSeq=self.get_read_seq(sLineName,(iReadStart,iNewReadStart-1))
+            sDirectExtractedSeq=self.get_read_seq(sLineName,(iNewReadStart,iNewReadStop))
+            sDirectDownstreamExtractedSeq=self.get_read_seq(sLineName,(iNewReadStop,iReadStop+1))
+            
+            sUpstreamExtractedSeq=GetReverseComplement(sDirectDownstreamExtractedSeq)
+            sExtractedSeq=GetReverseComplement(sDirectExtractedSeq)
+            sDownstreamExtractedSeq=GetReverseComplement(sDirectUpstreamExtractedSeq)
+        
+        sReadDictRef=dTempDict["ReadString"].replace("-","")
+        
+        if sUpstreamExtractedSeq+sExtractedSeq+sDownstreamExtractedSeq!=sReadDictRef:
+            print(sUpstreamExtractedSeq,sExtractedSeq,sDownstreamExtractedSeq)
+            print(dTempDict["ReadString"].replace("-",""))
+            exit("ERROR 2015 : not corresponding sequence")
+        
+        dData2Coord={}
+        
+        iUpstreamGap=0
+        sTemp=""
+        if sUpstreamExtractedSeq!="":
+            for cChar in dTempDict["ReadString"]:
+                if cChar!="-":
+                    sTemp+=cChar
+                else:
+                    iUpstreamGap+=1
+                if sTemp==sUpstreamExtractedSeq:
+                    sGeneString=dTempDict["GeneString"][:len(sUpstreamExtractedSeq)+iUpstreamGap]
+                    sReadString=dTempDict["ReadString"][:len(sUpstreamExtractedSeq)+iUpstreamGap]
+                    iUpReadStart=dTempDict["ReadStart"]
+                    iUpReadStop=dTempDict["ReadStart"]+len(sReadString.replace("-",""))-1
+                    iUpGeneStart=dTempDict["GeneStart"]
+                    iUpGeneStop=dTempDict["GeneStart"]+len(sGeneString.replace("-",""))-1
+                    
+                    dData2Coord["X"]={
+                            "ReadId":sReadId,
+                            "ReadSize":iReadSize,
+                            "ReadStart":iUpReadStart,
+                            "ReadStop":iUpReadStop,
+                            "Strand":sStrand,
+                            "GeneId":sGeneId,
+                            "GeneSize":iGeneSize,
+                            "GeneStart":iUpGeneStart,
+                            "GeneStop":iUpGeneStop,
+                            "AlignIdentity":len([X for X in range(len(sReadString)) if sReadString[X]==sGeneString[X]])/len(sReadString),
+                            "AlignGap":sGeneString.count("-")+sReadString.count("-"),
+                            "AlignSize":len(sReadString),
+                            "GeneString":sGeneString,
+                            "ReadString":sReadString,
+                            "AlignString":dTempDict["AlignString"][:len(sUpstreamExtractedSeq)+iUpstreamGap]
+                            }
+                    break
+        print(dData2Coord["X"])
+        ##print(sTemp,iUpstreamGap)
+        ##print(len(sTemp),len(sTemp)+iUpstreamGap)
+        ##print(dTempDict["ReadString"])
+        exit()
+        
+        iSeqGap=0
+        sTemp=""
+        if sExtractedSeq!="":
+            for cChar in dTempDict["ReadString"][len(sUpstreamExtractedSeq)+iUpstreamGap:]:
+                if cChar!="-":
+                    sTemp+=cChar
+                else:
+                    iSeqGap+=1
+                if sTemp==sExtractedSeq:
+                    sGeneString=dTempDict["GeneString"][len(sUpstreamExtractedSeq)+iUpstreamGap:len(sUpstreamExtractedSeq)+iUpstreamGap+len(sExtractedSeq)+iSeqGap]
+                    sReadString=dTempDict["ReadString"][len(sUpstreamExtractedSeq)+iUpstreamGap:len(sUpstreamExtractedSeq)+iUpstreamGap+len(sExtractedSeq)+iSeqGap]
+                    iSeqReadStart=iUpReadStop+1
+                    iSeqReadStop=iSeqReadStart+len(sReadString.replace("-",""))-1
+                    iSeqGeneStart=iUpGeneStop+1
+                    iSeqGeneStop=iSeqGeneStart+len(sGeneString.replace("-",""))-1
+                    
+                    dData2Coord["X"]={
+                            "ReadId":sReadId,
+                            "ReadSize":iReadSize,
+                            "ReadStart":iSeqReadStart,
+                            "ReadStop":iSeqReadStop,
+                            "Strand":sStrand,
+                            "GeneId":sGeneId,
+                            "GeneSize":iGeneSize,
+                            "GeneStart":iSeqGeneStart,
+                            "GeneStop":iSeqGeneStop,
+                            "AlignIdentity":len([X for X in range(len(sReadString)) if sReadString[X]==sGeneString[X]])/len(sReadString),
+                            "AlignGap":sGeneString.count("-")+sReadString.count("-"),
+                            "AlignSize":len(sReadString),
+                            "GeneString":sGeneString,
+                            "ReadString":sReadString,
+                            "AlignString":dTempDict["AlignString"][len(sUpstreamExtractedSeq)+iUpstreamGap:len(sUpstreamExtractedSeq)+iUpstreamGap+len(sExtractedSeq)+iSeqGap]
+                            }
+                    break
+        #print(sTemp,iSeqGap)
+        print(dData2Coord["X"])
+        exit()
+        
+        iDownstreamGap=0
+        sTemp=""
+        if sDownstreamExtractedSeq!="":
+            for cChar in dTempDict["ReadString"][len(sUpstreamExtractedSeq)+iUpstreamGap+len(sExtractedSeq)+iSeqGap:]:
+                if cChar!="-":
+                    sTemp+=cChar
+                else:
+                    iDownstreamGap+=1
+                if sTemp==sDownstreamExtractedSeq:
+                    break
+        print(sTemp,iDownstreamGap)
+                
+        #dRef2Content={
+                    #"ReadId":sReadId,
+                    #"ReadSize":int(sReadSize),
+                    #"ReadStart":int(sRead_HitStart),
+                    #"ReadStop":int(sRead_HitStop),
+                    #"Strand":sRead_Strand,
+                    #"GeneId":sGeneId,
+                    #"GeneSize":int(sGeneSize),
+                    #"GeneStart":int(sGene_HitStart),
+                    #"GeneStop":int(sGene_HitStop),
+                    #"AlignIdentity":int(sAlign_Identity),
+                    #"AlignGap":int(sAlign_Gap),
+                    #"AlignSize":int(sAlign_Length),
+                    #"GeneString":sGene_String,
+                    #"ReadString":sRead_String,
+                    #"AlignString":sAlign_String
+                    #}
+                #dRead2Coord[sReadId][(dRef2Content["ReadStart"],dRef2Content["ReadStop"])]=dRef2Content
+                #dRead2GeneCoord[sReadId][(min(dRef2Content["GeneStart"],dRef2Content["GeneStop"]),max(dRef2Content["GeneStart"],dRef2Content["GeneStop"]))]=dRef2Content
+        
+        
+        exit()
+            
+        #return self.get_read_seq(sLineName,(iNewReadStart-iExtand,iNewReadStop+iExtand))
         
     def get_alignGeneSeq(self,tPotentialTarget,iExtand=0):
         dTarget2Seq={}
@@ -2009,12 +2202,14 @@ class AlignedMatrixContent():
                 
                 print("Potential target are {}".format(tPotentialTarget))
                 
-                dTarget2Seq=self.get_alignGeneSeq(tPotentialTarget,CORRECT_ALIGN_STEP__EXTAND_VALUE)
+                #dTarget2Seq=self.get_alignGeneSeq(tPotentialTarget,CORRECT_ALIGN_STEP__EXTAND_VALUE)
+                dTarget2Seq=self.get_alignGeneSeq(tPotentialTarget)
                 print(dTarget2Seq)
                 
                 sCurrentBlockCoord=self.get_blockCoord(sCurrentBlock)
                 dbAlignGeneCoord=self.get_dbAlignGeneCoord(sLineName,sCurrentBlockCoord)
-                sAlignReadSeq=self.get_alignReadSeq(sLineName,dbAlignGeneCoord,sCurrentBlockCoord,CORRECT_ALIGN_STEP__EXTAND_VALUE)
+                #sAlignReadSeq=self.get_alignReadSeq(sLineName,dbAlignGeneCoord,sCurrentBlockCoord,CORRECT_ALIGN_STEP__EXTAND_VALUE)
+                sAlignReadSeq=self.extract_alignReadData(sLineName,dbAlignGeneCoord,sCurrentBlockCoord)
                 print(sCurrentBlock,":",sAlignReadSeq)
                 
                 sTempFastaRead=WriteTempFasta({sCurrentBlock:sAlignReadSeq})
@@ -2022,21 +2217,40 @@ class AlignedMatrixContent():
                 sTempResult="TempLALIGN"+str(random.random())+".out"
                 
                 ExecuteBashCommand("{0} {1} {2} > {3}".format(LALIGN_LAUNCHER,sTempFastaRead,sTempFastaRef,sTempResult))
-                dResult=PaseLalignResult(sTempResult)
-                print(dResult)
+                dOldAlignData=self.get_tr_dict_data_alt()[sLineName][dbAlignGeneCoord]
+                dNewAlignData=ParseLalignResult(sTempResult,sCurrentBlock)
                 
                 for sFile in [sTempFastaRead,sTempFastaRef,sTempResult]:
                     ExecuteBashCommand("rm {}".format(sFile))
                 
-                if len(dResult)==0:
+                if len(dNewAlignData)==0:
                     print("No potential alignment. Skip.")
                     continue
+                
+                fOldDistance=float(dOldAlignData["AlignIdentity"])/dOldAlignData["AlignSize"]
+                fNewDistance=float(dNewAlignData["AlignIdentity"])/dNewAlignData["AlignSize"]
+                
+                if fNewDistance<fOldDistance:
+                    exit("TODO2066: New alignment less good than old alignment")
+                    
+                print(dOldAlignData)
+                print(dNewAlignData)
+                    
+                #DEBUG
+                print("--------------Replace--------------")
+                print("Old alignment distance : {} \n{}\n{}\n{}".format(fOldDistance,
+                    dOldAlignData["GeneString"],dOldAlignData["AlignString"],dOldAlignData["ReadString"]))
+                print("New alignment distance : {} \n{}\n{}\n{}".format(fNewDistance,
+                    dNewAlignData["GeneString"],dNewAlignData["AlignString"],dNewAlignData["ReadString"]))
+                print("--------------/Replace--------------")
+                #/DEBUG
+                exit()
                 
                 ##Alignment have 1 solution.
                 #1- Erase old Read data concerning CurrentBlock
                 dbNeighboursMissing=self.erase_lineBlock(sCurrentBlock,iLineIndex)
                 #2- Update Read data concerning NewBlock
-                self.update_alignmentMatrix(dResult,dbNeighboursMissing,iLineIndex)
+                self.update_alignmentMatrix(dNewAlignData,dbNeighboursMissing,iLineIndex)
                 
                 return True
                 
@@ -2061,15 +2275,39 @@ class AlignedMatrixContent():
         if bAllGeneCover and bAllReadCover:
             ##Convert all in the Gene block into 1
             self.update_lineBlock(iLineIndex,dbGeneCoord[0],dbGeneCoord[1],dbMissing[0],dbMissing[-1])
-            print("Tag 2063 : succesfull modification")
+            print("All block covered")
         if not bAllGeneCover and bAllReadCover:
             ##Convert the aligned Gene block into 1
             iRelativeGeneStart=max(dDict["RefStart"],CORRECT_ALIGN_STEP__EXTAND_VALUE)-CORRECT_ALIGN_STEP__EXTAND_VALUE
             iRelativeGeneStop=min(dDict["RefTotalSize"]-CORRECT_ALIGN_STEP__EXTAND_VALUE,dDict["RefStop"])-CORRECT_ALIGN_STEP__EXTAND_VALUE
             self.update_lineBlock(iLineIndex,dbGeneCoord[0]+iRelativeGeneStart,dbGeneCoord[0]+iRelativeGeneStop,dbMissing[0],dbMissing[-1])
-            print("Tag 2063 : succesfull modification")
+            print("Partial block covered")
         if bAllGeneCover and not bAllReadCover:
-            exit("Error 2065 : bAllGeneCover + not bAllReadCover")
+            ##Convert all in the Gene block into 1, keep unaligned gap
+            oGapStart=dbMissing[0]
+            oGapStop=dbMissing[-1]
+            if dDict["QueryStop"]>dDict["QueryStart"]:
+                iReadStrand=1
+                iRealQueryStart=dDict["QueryStart"]
+                iRealQueryStop=dDict["QueryStop"]
+            else:
+                iReadStrand=-1
+                iRealQueryStart=dDict["QueryStop"]
+                iRealQueryStop=dDict["QueryStart"]
+            if iRealQueryStart>CORRECT_ALIGN_STEP__EXTAND_VALUE:
+                iDeltaStart=iRealQueryStart-CORRECT_ALIGN_STEP__EXTAND_VALUE
+                if oGapStart is None:
+                    oGapStart=-iDeltaStart
+                else:
+                    oGapStart-=iDeltaStart
+            if iRealQueryStop<dDict["QueryTotalSize"]-CORRECT_ALIGN_STEP__EXTAND_VALUE:
+                iDeltaStop=dDict["QueryTotalSize"]-CORRECT_ALIGN_STEP__EXTAND_VALUE-iRealQueryStop
+                if oGapStop is None:
+                    oGapStop=-iDeltaStop
+                else:
+                    oGapStop-=iDeltaStop
+            self.update_lineBlock(iLineIndex,dbGeneCoord[0],dbGeneCoord[1],oGapStart,oGapStop)
+            print("Partial read covered",oGapStart,oGapStop)
         if not bAllGeneCover and not bAllReadCover:
             exit("Error 2068 : not bAllGeneCover + not bAllReadCover")
             
@@ -3144,6 +3382,79 @@ class AlignedMatrixContent():
             tSubMatrix.append(list(tMatrix[iLineIndex]))
         return tSubMatrix
     
+    def parse_xmlFile(self,sPathFile,sGeneId):
+        dRead2Coord={}
+        dRead2GeneCoord={}
+        for sLine in open(sPathFile):
+            sStripedLine=sLine.strip()
+            tLine=re.split("[></]",sStripedLine)
+            tContentLine=[X for X in tLine if X!=""]
+            if len(tContentLine)==1:
+                continue
+            sTagContent=tContentLine[0]
+            sCoreContent=tContentLine[1]
+            if sTagContent=="BlastOutput_query-def":
+                sGeneId=sCoreContent
+            if sTagContent=="BlastOutput_query-len":
+                sGeneSize=sCoreContent
+            if sTagContent=="Hit_id":
+                sReadId=sCoreContent
+                if sReadId not in dRead2Coord:
+                    dRead2Coord[sReadId]={}
+                    dRead2GeneCoord[sReadId]={}
+            if sTagContent=="Hit_len":
+                sReadSize=sCoreContent
+            if sTagContent=="Hsp_query-from":
+                sGene_HitStart=sCoreContent
+            if sTagContent=="Hsp_query-to":
+                sGene_HitStop=sCoreContent
+            if sTagContent=="Hsp_hit-from":
+                sRead_HitStart=sCoreContent
+            if sTagContent=="Hsp_hit-to":
+                sRead_HitStop=sCoreContent
+            if sTagContent=="Hsp_hit-frame":
+                #sRead_Strand=sCoreContent
+                if sCoreContent=="1":
+                    sRead_Strand="+"
+                else:
+                    sRead_Strand="-"
+                    sRead_HitStart, sRead_HitStop = sRead_HitStop, sRead_HitStart
+            if sTagContent=="Hsp_identity":
+                sAlign_Identity=sCoreContent
+            if sTagContent=="Hsp_gaps":
+                sAlign_Gap=sCoreContent
+            if sTagContent=="Hsp_align-len":
+                sAlign_Length=sCoreContent
+            if sTagContent=="Hsp_qseq":
+                sGene_String=sCoreContent
+            if sTagContent=="Hsp_hseq":
+                sRead_String=sCoreContent
+            if sTagContent=="Hsp_midline":
+                sAlign_String=sCoreContent
+                dRef2Content={
+                    "ReadId":sReadId,
+                    "ReadSize":int(sReadSize),
+                    "ReadStart":int(sRead_HitStart),
+                    "ReadStop":int(sRead_HitStop),
+                    "Strand":sRead_Strand,
+                    "GeneId":sGeneId,
+                    "GeneSize":int(sGeneSize),
+                    "GeneStart":int(sGene_HitStart),
+                    "GeneStop":int(sGene_HitStop),
+                    "AlignIdentity":int(sAlign_Identity),
+                    "AlignGap":int(sAlign_Gap),
+                    "AlignSize":int(sAlign_Length),
+                    "GeneString":sGene_String,
+                    "ReadString":sRead_String,
+                    "AlignString":sAlign_String
+                    }
+                dRead2Coord[sReadId][(dRef2Content["ReadStart"],dRef2Content["ReadStop"])]=dRef2Content
+                dRead2GeneCoord[sReadId][(min(dRef2Content["GeneStart"],dRef2Content["GeneStop"]),max(dRef2Content["GeneStart"],dRef2Content["GeneStop"]))]=dRef2Content
+                
+        self.set_size(int(dRef2Content["GeneSize"]))
+        self.set_tr_dict_data(dRead2Coord)
+        self.set_tr_dict_data_alt(dRead2GeneCoord)
+    
     def parse_pafFile(self,sPathFile,sGeneId):
         dRead2Coord={}
         dRead2GeneCoord={}
@@ -3167,7 +3478,6 @@ class AlignedMatrixContent():
             #print(dRead2Coord)
             #print(dRead2GeneCoord)
             #exit()
-            
             
         self.set_size(int(dRef2Content["GeneSize"]))
         self.set_tr_dict_data(dRead2Coord)

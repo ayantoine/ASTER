@@ -9,35 +9,12 @@ import subprocess
 import time
 import datetime
 
-sCurrentVersionScript="v10"
+sCurrentVersionScript="v11"
 iTime1=time.time()
 ########################################################################
 '''
-V10-2018/11/23
-Fixed:Table more accuracy and synthetic
-
-V9-2018/11/06
-Added:Table
-V8-2018/10/26
-Added:Quentin's Graph
-V7-2018/10/24
-Added:GeneCoverThreshold and ReadCoverThreshold for the megablast filter
-V6-2018/10/16
-Arbitred:Just use megablast and exonerate
-Arbitred:Only one folder
-Arbitred:No submat
-V5-2018/10/15
-Added: allow user-defined substitution matrix for exonerate
-V4-2018/10/04
-Added: Externalize wordsize into the argfile. 
-Allowed value : 7 to 11 (yass seed)
-V3-2018/09/20
-Added: One folder by Analysis
-Added: MergeResults
-V2-2018/08/23
-Use Blast and Yass
-V1-2018/07/13
-Download data for all transcript of a given GeneId and recreate the gff
+V11-2018/12/20
+Rework all the logic. Keep trace of starting alignment
 
 python BlastWorkflow_Master.py -a ARGFILE
 
@@ -67,6 +44,7 @@ SCRIPT1=""
 SCRIPT2=""
 SCRIPT3=""
 SCRIPT4=""
+SCRIPT5=""
 
 GITDIR=""
 SCRIPTGRAPH=""
@@ -103,14 +81,6 @@ def ParseArgFile(sFile):
             dListOfArgs[sKey]=sValue
     return dListOfArgs
 
-def Str2Bool(sString):
-    if sString.lower() in ["true","yes","t","y","1"]:
-        return True
-    elif sString.lower() in ["false","no","f","n","0"]:
-        return False
-    else:
-        sys.exit("Error : AGREEDOWNLOAD must be a boolean value")
-
 def LoadArgFile(sFile):
     dArgs=ParseArgFile(sFile)
     try:
@@ -129,6 +99,8 @@ def LoadArgFile(sFile):
         SCRIPT3=PYTHONDIR+"/"+dArgs['SCRIPT3']
         global SCRIPT4
         SCRIPT4=PYTHONDIR+"/"+dArgs['SCRIPT4']
+        global SCRIPT5
+        SCRIPT5=PYTHONDIR+"/"+dArgs['SCRIPT5']
         
         global GITDIR
         GITDIR=dArgs['GITDIR']
@@ -141,13 +113,6 @@ def LoadArgFile(sFile):
         dbTarget=dArgs['GENEID']
     except KeyError as oError:
         sys.exit("Error : There is a missing value into the argsfile, process broken\n {}".format(oError))
-    global AGREEDOWNLOAD
-    try:
-        oCrash=dArgs['AGREEDOWNLOAD']
-        AGREEDOWNLOAD=Str2Bool(dArgs['AGREEDOWNLOAD'])
-    except KeyError:
-        AGREEDOWNLOAD=True
-        print("Warning :  no value for AGREEDOWNLOAD in the argfile. Default will be True")
     if isinstance(dbTarget,str):
         dbTarget=tuple([dbTarget])
 
@@ -202,12 +167,9 @@ if __name__ == "__main__":
             CreateFolder("./{}".format(sGeneId))
             tFolderList.append("./{}".format(sGeneId))
             
-            #SetupFolder()
-            
-            if AGREEDOWNLOAD:
-                print("--download...")
-                ExecuteBashCommand("time python {1} -t {0} -g {0}/{0}.gff -f {0}/{0}.fa".format(
-                    sGeneId,SCRIPT1))
+            print("--download...")
+            ExecuteBashCommand("time python {1} -t {0} -g {0}/{0}.gff -f {0}/{0}.fa".format(
+                sGeneId,SCRIPT1))
                     
             CreateFolder("{}/{}".format(sGeneId,MASKDIR))
             print("--repeatmasker...")
@@ -220,7 +182,6 @@ if __name__ == "__main__":
             ExecuteBashCommand("mv {0}/{1}/{0}.fa.masked {0}/{0}.fa.masked".format(
                 sGeneId,MASKDIR))
                 
-            print("Start Exonerate task...")
             ##Megablast pre-filter
             print("--megablast...")
             ExecuteBashCommand("time blastn -db {1} -query {0}/{0}.fa.masked -max_target_seqs 1000000 -outfmt 5 -out {0}/{0}.megablast.xml".format(
@@ -237,36 +198,43 @@ if __name__ == "__main__":
             ExecuteBashCommand('time exonerate --showvulgar no --showtargetgff y --model est2genome {0}/megablast.fa {0}/{0}.fa.masked > {0}/{0}.exonerate.txt'.format(
                     sGeneId))
             print("--exonerate parsing...")
-            ExecuteBashCommand("time python {1} -x {0}/{0}.exonerate.txt -t {0} -g {0}/{0}.gff -o {0}/{0}.exonerate.tsv -e {0}/{0}.exon.txt -f {0}/megablast.fa -r {0}/{0}.fa.masked -s {0}/{0}.megablast.tsv".format(
-                sGeneId,SCRIPT2))
-                
-            ##Graph
-            print("--graph...")
-            ExecuteBashCommand("time python {1} {0}/{0}.fa {0}/{0}.exonerate.paf {0}/{0}.exonerate.png".format(
-                sGeneId,SCRIPTGRAPH))
-            FILE=open("{0}/LaunchFile.sh".format(sGeneId),"w")
-            FILE.write("time python {1} ./{0}.fa ./{0}.exonerate.paf ./{0}.exonerate.png".format(
-                sGeneId,SCRIPTGRAPH))
-            FILE.close()
-            
-            #Table
+            ExecuteBashCommand('time python {1} -r {2} -b {0}/{0}.megablast.tsv -g {0}/{0}.fa.masked -e {0}/{0}.exonerate.txt -o {0}/{0}.exonerate.xml'.format(
+                    sGeneId,SCRIPT4,BLASTDATABASE))
             print("--table...")
-            ExecuteBashCommand("time python {1} -p {0}/{0}.exonerate.paf -r {0}/{0}.fa.masked -f {0}/megablast.fa -t {0} -g {0}/{0}.gff -o {0}/{0}.spliceSummary.tsv".format(
-                sGeneId,SCRIPT4))
+            ExecuteBashCommand("time python {1} -x {0}/{0}.exonerate.xml -r {0}/{0}.fa.masked -f {0}/megablast.fa -t {0} -g {0}/{0}.gff -o {0}/{0}.spliceSummary.tsv".format(
+                sGeneId,SCRIPT5))
+            
+            
+            #print("--exonerate parsing...")
+            #ExecuteBashCommand("time python {1} -x {0}/{0}.exonerate.txt -t {0} -g {0}/{0}.gff -o {0}/{0}.exonerate.tsv -e {0}/{0}.exon.txt -f {0}/megablast.fa -r {0}/{0}.fa.masked -s {0}/{0}.megablast.tsv".format(
+                #sGeneId,SCRIPT2))
+                
+            ###Graph
+            #print("--graph...")
+            #ExecuteBashCommand("time python {1} {0}/{0}.fa {0}/{0}.exonerate.paf {0}/{0}.exonerate.png".format(
+                #sGeneId,SCRIPTGRAPH))
+            #FILE=open("{0}/LaunchFile.sh".format(sGeneId),"w")
+            #FILE.write("time python {1} ./{0}.fa ./{0}.exonerate.paf ./{0}.exonerate.png".format(
+                #sGeneId,SCRIPTGRAPH))
+            #FILE.close()
+            
+            ##Table
+            #print("--table...")
+            #ExecuteBashCommand("time python {1} -p {0}/{0}.exonerate.paf -r {0}/{0}.fa.masked -f {0}/megablast.fa -t {0} -g {0}/{0}.gff -o {0}/{0}.spliceSummary.tsv".format(
+                #sGeneId,SCRIPT5))
             
             print("WORK ON {} DONE".format(sGeneId))
         except Exception as e:
             print("CRASH : {}".format(e))
         
     
-    print("GROUP FOLDERS")
-    sFolderPath="./{}analysisOn{}_{}{}{}".format(
-                    sCurrentVersionScript,len(dbListOfTarget),YEAR,MONTH,DAY)
-    CreateFolder(sFolderPath)
-    for sTargetFolder in tFolderList:
-        ExecuteBashCommand("mv ./{1} {0}/".format(sFolderPath,sTargetFolder))
-        #ExecuteBashCommand("rm {0}/*".format(sFolderPath,sTargetFolder))
-    print("DONE")
+    #print("GROUP FOLDERS")
+    #sFolderPath="./{}analysisOn{}_{}{}{}".format(
+                    #sCurrentVersionScript,len(dbListOfTarget),YEAR,MONTH,DAY)
+    #CreateFolder(sFolderPath)
+    #for sTargetFolder in tFolderList:
+        #ExecuteBashCommand("mv ./{1} {0}/".format(sFolderPath,sTargetFolder))
+    #print("DONE")
 
 ########################################################################    
 iTime2=time.time()
