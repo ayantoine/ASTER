@@ -31,8 +31,8 @@ DEBUG_BOOL=False
 DEBUG_READID="ch117_read1370_template_pass_BYK_CB_ONT_1_FAF04998_A"
 
 CORRECT_ALIGN_STEP__EXTAND_VALUE=0
-LALIGN_LAUNCHER="~/Git/fasta36/bin/lalign36"
-LALIGN_THRESHOLD=80
+LALIGN_LAUNCHER="~/Git/fasta36/bin/lalign36 -3" #WARNING: only forwad strand
+#LALIGN_THRESHOLD=80
 
 #Exonerate Parsing
 REVERSE_COMP={"A":"T","C":"G","G":"C","T":"A",
@@ -70,7 +70,7 @@ def ParseLalignResult(sFile,sReadBlock):
         sLine=sLine.strip()
         if ">>>" in sLine:
             tLine=sLine.split(" ")
-            iReadSize=int(tLine[-2])
+            iReadSize=int(tLine[-3])
         elif ">>" in sLine:
             tLine=re.split("[>< ()]",sLine.replace(">>",""))
             sGeneBlock=tLine[0]
@@ -1820,6 +1820,7 @@ class AlignedMatrixContent():
         #print(self.get_tr_dict_data())
         ##exit()
         self.setup_matrix()
+        #print("DebugMe:",self.get_submatrix_byLine(2,2)[0][13357:13439])
         
         #print(self.get_submatrix_byLine(2,2))
         #exit()
@@ -1829,7 +1830,10 @@ class AlignedMatrixContent():
         self.assign_blockName()
         self.assign_blockConfidence()
         
+        self.globalData2tsv("PrimaryTable.tsv")
+        
         self.regroup_globalVector()  #This will modify the matrix!!
+        #print("DebugMe:",self.get_submatrix_byLine(2,2)[0][13357:13439])
         
         self.setup_popVector()
         self.setup_globalVector()
@@ -1842,6 +1846,30 @@ class AlignedMatrixContent():
         #print("selfBlockPop:",self.get_blockPop())
             
         self.globalData2tsv(sOutputFile)
+    
+    #def debug_matrix(self):
+        #dTr2Data=self.get_tr_dict_data()
+        #tTrId=self.get_matrix_lineName()
+        #for iTrId in range(len(tTrId)):
+            #sTrId=tTrId[iTrId]
+            #print("~~~~~~~~~~~~~~~~~")
+            #print(sTrId,dTr2Data[sTrId][sorted(dTr2Data[sTrId])[0]]["Strand"])
+            
+            #tCurrentVector=self.get_submatrix_byLine(iTrId,iTrId)[0]
+                        
+            #for iDbIndex in range(len(dTr2Data[sTrId])):
+                #dbCurrentKey=sorted(dTr2Data[sTrId])[iDbIndex]
+                #iCurrentGeneStart=dTr2Data[sTrId][dbCurrentKey]["GeneStart"]
+                #iCurrentGeneStop=dTr2Data[sTrId][dbCurrentKey]["GeneStop"]
+                
+                #print("------------")
+                #print("TrData",dTr2Data[sTrId][dbCurrentKey])
+                #print(tCurrentVector[iCurrentGeneStart:iCurrentGeneStop+1])
+                
+                #if sum(tCurrentVector[iCurrentGeneStart:iCurrentGeneStop+1])!=len(tCurrentVector[iCurrentGeneStart:iCurrentGeneStop+1]):
+                    #exit("Error 1872 : Vector not correcting filled")
+        
+
     
     def get_geneId(self):
         return self.gene_id
@@ -1864,6 +1892,7 @@ class AlignedMatrixContent():
             print(">"+self.get_matrix_lineName(iLineIndex)+"\n"+self.get_read_seq(self.get_matrix_lineName(iLineIndex)))
     
     def apply_correction(self):
+        print("DebugMe:",self.get_submatrix_byLine(2,2)[0][13357:13439])
         bMatrixIsModified=True
         iCorrectionStep=0
         while bMatrixIsModified:
@@ -1880,6 +1909,7 @@ class AlignedMatrixContent():
                 self.assign_blockConfidence()
                 
                 self.globalData2tsv("Intermediate{}.spliceSummary.tsv".format(iCorrectionStep))
+                print("DebugMe:",self.get_submatrix_byLine(2,2)[0][13357:13439])
     
     def make_groupOfBlock(self,tListOfBlock):
         tGroupOfGroupOfBlock=[]
@@ -1984,160 +2014,113 @@ class AlignedMatrixContent():
             #iNewReadStop=iReadStop+iDeltaStart
         #return self.get_read_seq(sLineName,(iNewReadStart-iExtand,iNewReadStop+iExtand))
     
-    def extract_alignReadData(self,sLineName,dbAlignGeneCoord,sCurrentBlockCoord):
+    def extract_alignReadData(self,sLineName,dbAlignGeneCoord,dbCurrentBlockCoord):
         dTempDict=self.get_tr_dict_data_alt()[sLineName][dbAlignGeneCoord]
         sReadId=dTempDict["ReadId"]
         iReadSize=dTempDict["ReadSize"]
         sStrand=dTempDict["Strand"]
         sGeneId=dTempDict["GeneId"]
         iGeneSize=dTempDict["GeneSize"]
-        print(dTempDict)
+        sReadString=dTempDict["ReadString"]
+        sGeneString=dTempDict["GeneString"]
+        #print(dTempDict)
+        #print(dbCurrentBlockCoord)
         
         iGeneStart=dTempDict["GeneStart"]
         iGeneStop=dTempDict["GeneStop"]
         iReadStart=dTempDict["ReadStart"]
         iReadStop=dTempDict["ReadStop"]
-        sGeneStrand=dTempDict["Strand"]
-        iDeltaStart=iGeneStart-sCurrentBlockCoord[0]
-        iDeltaStop=iGeneStop-sCurrentBlockCoord[1]
-        if sGeneStrand=="+":
+        iDeltaStart=iGeneStart-dbCurrentBlockCoord[0]
+        iDeltaStop=iGeneStop-dbCurrentBlockCoord[1]
+        if sStrand=="+":
             iNewReadStart=iReadStart-iDeltaStart
             iNewReadStop=iReadStop-iDeltaStop
         else:
             iNewReadStart=iReadStart+iDeltaStop
             iNewReadStop=iReadStop+iDeltaStart
-        
-        ##Warning: on dTempDict, ReadString with Strand- is in ReverseComplement to the real Read seq in fasta
-        if sGeneStrand=="+":
-            exit("TODO 2001")
-        else:
-            sDirectUpstreamExtractedSeq=self.get_read_seq(sLineName,(iReadStart,iNewReadStart-1))
-            sDirectExtractedSeq=self.get_read_seq(sLineName,(iNewReadStart,iNewReadStop))
-            sDirectDownstreamExtractedSeq=self.get_read_seq(sLineName,(iNewReadStop,iReadStop+1))
             
-            print("debug1",sDirectUpstreamExtractedSeq,"|",sDirectExtractedSeq,"|",sDirectDownstreamExtractedSeq)
-            
-            sUpstreamExtractedSeq=GetReverseComplement(sDirectDownstreamExtractedSeq)
-            sExtractedSeq=GetReverseComplement(sDirectExtractedSeq)
-            sDownstreamExtractedSeq=GetReverseComplement(sDirectUpstreamExtractedSeq)
-            
-            print("debug2",sUpstreamExtractedSeq,"|",sExtractedSeq,"|",sDownstreamExtractedSeq)
-        
-        sReadDictRef=dTempDict["ReadString"].replace("-","")
-        
-        if sUpstreamExtractedSeq+sExtractedSeq+sDownstreamExtractedSeq!=sReadDictRef:
-            print("exit1",sUpstreamExtractedSeq,sExtractedSeq,sDownstreamExtractedSeq)
-            print("exit2",dTempDict["ReadString"].replace("-",""))
-            exit("ERROR 2015 : not corresponding sequence")
+        #print(iNewReadStart,iNewReadStop)
         
         dData2Coord={}
+        iBeforeSizePart=0
+        iUpReadStop=dTempDict["ReadStart"]-1
+        iUpGeneStop=dTempDict["GeneStart"]-1
+        iAfterSizePart=len(sGeneString)
         
-        iUpstreamGap=0
-        sTemp=""
-        if sUpstreamExtractedSeq!="":
-            for cChar in dTempDict["ReadString"]:
-                if cChar!="-":
-                    sTemp+=cChar
-                else:
-                    iUpstreamGap+=1
-                if sTemp==sUpstreamExtractedSeq:
-                    sGeneString=dTempDict["GeneString"][:len(sUpstreamExtractedSeq)+iUpstreamGap]
-                    sReadString=dTempDict["ReadString"][:len(sUpstreamExtractedSeq)+iUpstreamGap]
-                    iUpReadStart=dTempDict["ReadStart"]
-                    iUpReadStop=dTempDict["ReadStart"]+len(sReadString.replace("-",""))-1
-                    iUpGeneStart=dTempDict["GeneStart"]
-                    iUpGeneStop=dTempDict["GeneStart"]+len(sGeneString.replace("-",""))-1
+        if dbCurrentBlockCoord[0]>iGeneStart:
+            #print("There is a part before RealignedSeq")
+            iBeforeSizePart=dbCurrentBlockCoord[0]-iGeneStart
+            iDetectedGap=0
+            while iBeforeSizePart-iDetectedGap!=len(sGeneString[:iBeforeSizePart].replace("-","")):
+                iDetectedGap=sGeneString[:iBeforeSizePart].count("-")
+            #print("There is {} detectedGap into the part before RealignedSeq".format(iDetectedGap))
+            #print(sGeneString[:iBeforeSizePart])
+            
+            sUpGeneString=dTempDict["GeneString"][:iBeforeSizePart]
+            sUpReadString=dTempDict["ReadString"][:iBeforeSizePart]
+            sUpAlignString=dTempDict["AlignString"][:iBeforeSizePart]
+            iUpReadStart=dTempDict["ReadStart"]
+            iUpReadStop=iUpReadStart+len(sUpReadString.replace("-",""))-1
+            iUpGeneStart=dTempDict["GeneStart"]
+            iUpGeneStop=iUpGeneStart+len(sUpGeneString.replace("-",""))-1
+            
+            dData2Coord[(min(iUpGeneStart,iUpGeneStop),max(iUpGeneStart,iUpGeneStop))]={
+                    "ReadId":sReadId,
+                    "ReadSize":iReadSize,
+                    "ReadStart":iUpReadStart,
+                    "ReadStop":iUpReadStop,
+                    "Strand":sStrand,
+                    "GeneId":sGeneId,
+                    "GeneSize":iGeneSize,
+                    "GeneStart":iUpGeneStart,
+                    "GeneStop":iUpGeneStop,
+                    "AlignIdentity":len([X for X in range(len(sReadString)) if sReadString[X]==sGeneString[X]])/len(sReadString),
+                    "AlignGap":sGeneString.count("-")+sReadString.count("-"),
+                    "AlignSize":len(sReadString),
+                    "GeneString":sUpGeneString,
+                    "ReadString":sUpReadString,
+                    "AlignString":sUpAlignString
+                    }
                     
-                    dData2Coord[(min(iUpGeneStart,iUpGeneStop),max(iUpGeneStart,iUpGeneStop))]={
-                            "ReadId":sReadId,
-                            "ReadSize":iReadSize,
-                            "ReadStart":iUpReadStart,
-                            "ReadStop":iUpReadStop,
-                            "Strand":sStrand,
-                            "GeneId":sGeneId,
-                            "GeneSize":iGeneSize,
-                            "GeneStart":iUpGeneStart,
-                            "GeneStop":iUpGeneStop,
-                            "AlignIdentity":len([X for X in range(len(sReadString)) if sReadString[X]==sGeneString[X]])/len(sReadString),
-                            "AlignGap":sGeneString.count("-")+sReadString.count("-"),
-                            "AlignSize":len(sReadString),
-                            "GeneString":sGeneString,
-                            "ReadString":sReadString,
-                            "AlignString":dTempDict["AlignString"][:len(sUpstreamExtractedSeq)+iUpstreamGap]
-                            }
-                    break
+        else:
+            pass
+            #print("There is no part before RealignedSeq")
+        if dbCurrentBlockCoord[1]<iGeneStop:
+            print("There is a part after RealignedSeq")
+            exit("TODO")
+        else:
+            pass
+            #print("There is no part after RealignedSeq")
         
-        iSeqGap=0
-        sTemp=""
-        if sExtractedSeq!="":
-            for cChar in dTempDict["ReadString"][len(sUpstreamExtractedSeq)+iUpstreamGap:]:
-                if cChar!="-":
-                    sTemp+=cChar
-                else:
-                    iSeqGap+=1
-                if sTemp==sExtractedSeq:
-                    sGeneString=dTempDict["GeneString"][len(sUpstreamExtractedSeq)+iUpstreamGap:len(sUpstreamExtractedSeq)+iUpstreamGap+len(sExtractedSeq)+iSeqGap]
-                    sReadString=dTempDict["ReadString"][len(sUpstreamExtractedSeq)+iUpstreamGap:len(sUpstreamExtractedSeq)+iUpstreamGap+len(sExtractedSeq)+iSeqGap]
-                    iSeqReadStart=iUpReadStop+1
-                    iSeqReadStop=iSeqReadStart+len(sReadString.replace("-",""))-1
-                    iSeqGeneStart=iUpGeneStop+1
-                    iSeqGeneStop=iSeqGeneStart+len(sGeneString.replace("-",""))-1
-                    
-                    dData2Coord[(min(iSeqGeneStart,iSeqGeneStop),max(iSeqGeneStart,iSeqGeneStop))]={
-                            "ReadId":sReadId,
-                            "ReadSize":iReadSize,
-                            "ReadStart":iSeqReadStart,
-                            "ReadStop":iSeqReadStop,
-                            "Strand":sStrand,
-                            "GeneId":sGeneId,
-                            "GeneSize":iGeneSize,
-                            "GeneStart":iSeqGeneStart,
-                            "GeneStop":iSeqGeneStop,
-                            "AlignIdentity":len([X for X in range(len(sReadString)) if sReadString[X]==sGeneString[X]])/len(sReadString),
-                            "AlignGap":sGeneString.count("-")+sReadString.count("-"),
-                            "AlignSize":len(sReadString),
-                            "GeneString":sGeneString,
-                            "ReadString":sReadString,
-                            "AlignString":dTempDict["AlignString"][len(sUpstreamExtractedSeq)+iUpstreamGap:len(sUpstreamExtractedSeq)+iUpstreamGap+len(sExtractedSeq)+iSeqGap]
-                            }
-                    break
+        sTargetGeneString=dTempDict["GeneString"][iBeforeSizePart:iAfterSizePart]
+        sTargetReadString=dTempDict["ReadString"][iBeforeSizePart:iAfterSizePart]
+        sTargetAlignString=dTempDict["AlignString"][iBeforeSizePart:iAfterSizePart]
+        iTargetReadStart=iUpReadStop+1
+        iTargetReadStop=iTargetReadStart+len(sUpReadString.replace("-",""))-1
+        iTargetGeneStart=iUpGeneStop+1
+        iTargetGeneStop=iTargetGeneStart+len(sUpGeneString.replace("-",""))-1
         
-        iDownstreamGap=0
-        sTemp=""
-        if sDownstreamExtractedSeq!="":
-            for cChar in dTempDict["ReadString"][len(sUpstreamExtractedSeq)+iUpstreamGap+len(sExtractedSeq)+iSeqGap:]:
-                if cChar!="-":
-                    sTemp+=cChar
-                else:
-                    iDownstreamGap+=1
-                if sTemp==sDownstreamExtractedSeq:
-                    sGeneString=dTempDict["GeneString"][len(sUpstreamExtractedSeq)+iUpstreamGap+len(sExtractedSeq)+iSeqGap:len(sUpstreamExtractedSeq)+iUpstreamGap+len(sExtractedSeq)+iSeqGap+len(sDownstreamExtractedSeq)+iDownstreamGap]
-                    sReadString=dTempDict["ReadString"][len(sUpstreamExtractedSeq)+iUpstreamGap+len(sExtractedSeq)+iSeqGap:len(sUpstreamExtractedSeq)+iUpstreamGap+len(sExtractedSeq)+iSeqGap+len(sDownstreamExtractedSeq)+iDownstreamGap]
-                    iDownReadStart=iSeqReadStop+1
-                    iDownReadStop=iDownReadStart+len(sReadString.replace("-",""))-1
-                    iDownGeneStart=iSeqGeneStop+1
-                    iDownGeneStop=iDownGeneStart+len(sGeneString.replace("-",""))-1
-                    
-                    dData2Coord[(min(iDownGeneStart,iDownGeneStop),max(iDownGeneStart,iDownGeneStop))]={
-                            "ReadId":sReadId,
-                            "ReadSize":iReadSize,
-                            "ReadStart":iDownReadStart,
-                            "ReadStop":iDownReadStop,
-                            "Strand":sStrand,
-                            "GeneId":sGeneId,
-                            "GeneSize":iGeneSize,
-                            "GeneStart":iDownGeneStart,
-                            "GeneStop":iDownGeneStop,
-                            "AlignIdentity":len([X for X in range(len(sReadString)) if sReadString[X]==sGeneString[X]])/len(sReadString),
-                            "AlignGap":sGeneString.count("-")+sReadString.count("-"),
-                            "AlignSize":len(sReadString),
-                            "GeneString":sGeneString,
-                            "ReadString":sReadString,
-                            "AlignString":dTempDict["AlignString"][len(sUpstreamExtractedSeq)+iUpstreamGap+len(sExtractedSeq)+iSeqGap:len(sUpstreamExtractedSeq)+iUpstreamGap+len(sExtractedSeq)+iSeqGap+len(sDownstreamExtractedSeq)+iDownstreamGap]
-                            }
-                    break
+        dData2Coord[(min(iTargetGeneStart,iTargetGeneStop),max(iTargetGeneStart,iTargetGeneStop))]={
+                "ReadId":sReadId,
+                "ReadSize":iReadSize,
+                "ReadStart":iTargetReadStart,
+                "ReadStop":iTargetReadStop,
+                "Strand":sStrand,
+                "GeneId":sGeneId,
+                "GeneSize":iGeneSize,
+                "GeneStart":iTargetGeneStart,
+                "GeneStop":iTargetGeneStop,
+                "AlignIdentity":len([X for X in range(len(sReadString)) if sReadString[X]==sGeneString[X]])/len(sReadString),
+                "AlignGap":sGeneString.count("-")+sReadString.count("-"),
+                "AlignSize":len(sReadString),
+                "GeneString":sTargetGeneString,
+                "ReadString":sTargetReadString,
+                "AlignString":sTargetAlignString
+                }
         
-        return (dData2Coord,(min(iSeqGeneStart,iSeqGeneStop),max(iSeqGeneStart,iSeqGeneStop)))
+        #print(dData2Coord)
+        
+        return (dData2Coord,(min(iTargetGeneStart,iTargetGeneStop),max(iTargetGeneStart,iTargetGeneStop)))
         
         
     def get_alignGeneSeq(self,tPotentialTarget,iExtand=0):
@@ -2184,6 +2167,7 @@ class AlignedMatrixContent():
                 sPreviousBlock=self.get_PreviousConfidentBlock(tSuspiciousBlock,tCurrentSuspiciousBlock,sCurrentBlock,tReadBlock,tGroupOfReadBlock)
                 sNextBlock=self.get_NextConfidentBlock(tSuspiciousBlock,tCurrentSuspiciousBlock,sCurrentBlock,tReadBlock,tGroupOfReadBlock)
                 print("{0} chained into {1} {0} {2}".format(sCurrentBlock,sPreviousBlock,sNextBlock))
+                print(self.get_alignGeneSeq([sCurrentBlock,sPreviousBlock,sNextBlock]))
                 
                 if sPreviousBlock is not None and sNextBlock is not None:
                     tPotentialTarget=[X for X in tGeneBlock[tGeneBlock.index(sPreviousBlock)+1:tGeneBlock.index(sNextBlock)] if X!="i" and not isinstance(X,int) and X not in tSuspiciousBlock]
@@ -2208,11 +2192,12 @@ class AlignedMatrixContent():
                 dbAlignGeneCoord=self.get_dbAlignGeneCoord(sLineName,sCurrentBlockCoord)
                 #sAlignReadSeq=self.get_alignReadSeq(sLineName,dbAlignGeneCoord,sCurrentBlockCoord,CORRECT_ALIGN_STEP__EXTAND_VALUE)
                 dbTemp=self.extract_alignReadData(sLineName,dbAlignGeneCoord,sCurrentBlockCoord)
+                print(dbTemp)
                 dDict=dbTemp[0]
                 dbTargetSeq=dbTemp[1]
                 sAlignReadSeq=dDict[dbTargetSeq]["ReadString"].replace("-","")
                 print(sCurrentBlock,":",sAlignReadSeq)
-                                
+                
                 sTempFastaRead=WriteTempFasta({sCurrentBlock:sAlignReadSeq})
                 sTempFastaRef=WriteTempFasta(dTarget2Seq)
                 sTempResult="TempLALIGN"+str(random.random())+".out"
@@ -2264,10 +2249,10 @@ class AlignedMatrixContent():
                 del dDict[dbTargetSeq]
                 dDict[(dNewAlignData["GeneStart"],dNewAlignData["GeneStop"])]=dNewAlignData
                 
-                #print(dOldAlignData)
-                ##print(dNewAlignData)
-                #print(dDict)
-                                
+                print(dOldAlignData)
+                #print(dNewAlignData)
+                print(dDict)
+                
                 #DEBUG
                 print("--------------Replace--------------")
                 print("Old alignment distance : {} \n{}\n{}\n{}".format(fOldDistance,
@@ -2280,7 +2265,6 @@ class AlignedMatrixContent():
                         dDict[sKey]["GeneString"],dDict[sKey]["AlignString"],dDict[sKey]["ReadString"]))
                 print("--------------/Replace--------------")
                 #/DEBUG
-                
                 
                 ##Remove the OldAlignData
                 dbToRemoveReadCoord=(dOldAlignData["ReadStart"],dOldAlignData["ReadStop"])
@@ -3293,12 +3277,18 @@ class AlignedMatrixContent():
                 #print("------------")
                 #print("ReadSize",iCurrentReadSize,"GeneSize",iCurrentGeneSize)
                 #print("dbCurrentKey",iCurrentReadStart,iCurrentReadStop,iCurrentGeneStart,iCurrentGeneStop)
+                #print("TrData",dTr2Data[sTrId][dbCurrentKey])
                 
                 for iIndex in range(iCurrentGeneStart,iCurrentGeneStop+1):
                     if iIndex<iCurrentGeneSize:
                         tCurrentVector[iIndex]=1
                     else:
                         exit("Error 2257 : iIndex>=iCurrentGeneSize")
+                if sum(tCurrentVector[iCurrentGeneStart:iCurrentGeneStop+1])!=len(tCurrentVector[iCurrentGeneStart:iCurrentGeneStop+1]):
+                    exit("Error 3311 : Vector not correcting filled")
+                        
+                #print("Vector",tCurrentVector[iCurrentGeneStart-5:iCurrentGeneStop+1+5])
+                #print("VectorCoord",iCurrentGeneStart-5,iCurrentGeneStop+1+5)
                 
                 bIsNotFirst=iDbIndex!=0
                 if bIsNotFirst:
