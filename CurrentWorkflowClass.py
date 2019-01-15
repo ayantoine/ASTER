@@ -31,7 +31,7 @@ DEBUG_BOOL=False
 DEBUG_READID="ch117_read1370_template_pass_BYK_CB_ONT_1_FAF04998_A"
 
 CORRECT_ALIGN_STEP__EXTAND_VALUE=0
-LALIGN_LAUNCHER="~/Git/fasta36/bin/lalign36 -3" #WARNING: only forwad strand
+LALIGN_LAUNCHER="~/Git/fasta36/bin/lalign36 -3 -U" #WARNING: only forwad strand
 #LALIGN_THRESHOLD=80
 
 #Exonerate Parsing
@@ -66,15 +66,20 @@ def ParseLalignResult(sFile,sReadBlock):
     sReadString=""
     sGeneString=""
     sAlignString=""
+    bStop=False
     for sLine in open(sFile):
         sLine=sLine.strip()
         if ">>>" in sLine:
             tLine=sLine.split(" ")
             iReadSize=int(tLine[-3])
-        elif ">>" in sLine:
+        elif ">>" in sLine and not bStop:
             tLine=re.split("[>< ()]",sLine.replace(">>",""))
             sGeneBlock=tLine[0]
             iGeneSize=int(tLine[-3])
+            bStop=True
+        elif "!! No sequences" in sLine:
+            return {}
+            #exit("No sequence")
         elif "identity" in sLine:
             tLine=re.split("[%>< ():-]",sLine)
             iReadStart=int(tLine[-5])
@@ -84,8 +89,12 @@ def ParseLalignResult(sFile,sReadBlock):
             iAlignSize=int(tLine[-9])
             bTrackingAlignment=True
             continue
-        elif "query   sequences" in sLine:
+        elif "query   sequences" in sLine or (">>" in sLine and bStop) or (">--" in sLine and bStop):
             bTrackingAlignment=False
+            try:
+                oCrashMe=iReadStart
+            except UnboundLocalError:
+                return {}
             if iReadStart>iReadStop:
                 sStrand="-"
                 iReadStart, iReadStop = iReadStop, iReadStart
@@ -1830,7 +1839,7 @@ class AlignedMatrixContent():
         self.assign_blockName()
         self.assign_blockConfidence()
         
-        self.globalData2tsv("PrimaryTable.tsv")
+        #self.globalData2tsv("PrimaryTable.tsv")
         
         self.regroup_globalVector()  #This will modify the matrix!!
         #print("DebugMe:",self.get_submatrix_byLine(2,2)[0][13357:13439])
@@ -1892,7 +1901,7 @@ class AlignedMatrixContent():
             print(">"+self.get_matrix_lineName(iLineIndex)+"\n"+self.get_read_seq(self.get_matrix_lineName(iLineIndex)))
     
     def apply_correction(self):
-        print("DebugMe:",self.get_submatrix_byLine(2,2)[0][13357:13439])
+        #print("DebugMe:",self.get_submatrix_byLine(2,2)[0][13357:13439])
         bMatrixIsModified=True
         iCorrectionStep=0
         while bMatrixIsModified:
@@ -1909,7 +1918,7 @@ class AlignedMatrixContent():
                 self.assign_blockConfidence()
                 
                 self.globalData2tsv("Intermediate{}.spliceSummary.tsv".format(iCorrectionStep))
-                print("DebugMe:",self.get_submatrix_byLine(2,2)[0][13357:13439])
+                #print("DebugMe:",self.get_submatrix_byLine(2,2)[0][13357:13439])
     
     def make_groupOfBlock(self,tListOfBlock):
         tGroupOfGroupOfBlock=[]
@@ -2023,46 +2032,53 @@ class AlignedMatrixContent():
         iGeneSize=dTempDict["GeneSize"]
         sReadString=dTempDict["ReadString"]
         sGeneString=dTempDict["GeneString"]
-        #print(dTempDict)
-        #print(dbCurrentBlockCoord)
-        
+        sAlignString=dTempDict["AlignString"]
         iGeneStart=dTempDict["GeneStart"]
         iGeneStop=dTempDict["GeneStop"]
         iReadStart=dTempDict["ReadStart"]
         iReadStop=dTempDict["ReadStop"]
         iDeltaStart=iGeneStart-dbCurrentBlockCoord[0]
         iDeltaStop=iGeneStop-dbCurrentBlockCoord[1]
-        if sStrand=="+":
-            iNewReadStart=iReadStart-iDeltaStart
-            iNewReadStop=iReadStop-iDeltaStop
-        else:
-            iNewReadStart=iReadStart+iDeltaStop
-            iNewReadStop=iReadStop+iDeltaStart
-            
-        #print(iNewReadStart,iNewReadStop)
+        
+        sUngappedReadString=sReadString.replace("-","")
+        tUngappedReadString=list(range(iReadStart,iReadStop+1))
+        tReadString=[]
+        iCoord=iReadStart
+        for iIndex in range(len(sReadString)):
+            cChar=sReadString[iIndex]
+            if cChar!="-":
+                tReadString.append(iCoord)
+                iCoord+=1
+            else:
+                tReadString.append(-1)
+        
+        sUngappedGeneString=sGeneString.replace("-","")
+        tUngappedGeneString=list(range(iGeneStart,iGeneStop+1))
+        tGeneString=[]
+        iCoord=iGeneStart
+        for iIndex in range(len(sGeneString)):
+            cChar=sGeneString[iIndex]
+            if cChar!="-":
+                tGeneString.append(iCoord)
+                iCoord+=1
+            else:
+                tGeneString.append(-1)
+                
+        #print(tGeneString)
+        #print(dbCurrentBlockCoord)
         
         dData2Coord={}
-        iBeforeSizePart=0
-        iUpReadStop=dTempDict["ReadStart"]-1
-        iUpGeneStop=dTempDict["GeneStart"]-1
-        iAfterSizePart=len(sGeneString)
         
-        if dbCurrentBlockCoord[0]>iGeneStart:
-            #print("There is a part before RealignedSeq")
-            iBeforeSizePart=dbCurrentBlockCoord[0]-iGeneStart
-            iDetectedGap=0
-            while iBeforeSizePart-iDetectedGap!=len(sGeneString[:iBeforeSizePart].replace("-","")):
-                iDetectedGap=sGeneString[:iBeforeSizePart].count("-")
-            #print("There is {} detectedGap into the part before RealignedSeq".format(iDetectedGap))
-            #print(sGeneString[:iBeforeSizePart])
+        if dbCurrentBlockCoord[0]!=tGeneString[0]:
+            iIndex=tGeneString.index(dbCurrentBlockCoord[0]-1)
             
-            sUpGeneString=dTempDict["GeneString"][:iBeforeSizePart]
-            sUpReadString=dTempDict["ReadString"][:iBeforeSizePart]
-            sUpAlignString=dTempDict["AlignString"][:iBeforeSizePart]
-            iUpReadStart=dTempDict["ReadStart"]
-            iUpReadStop=iUpReadStart+len(sUpReadString.replace("-",""))-1
-            iUpGeneStart=dTempDict["GeneStart"]
-            iUpGeneStop=iUpGeneStart+len(sUpGeneString.replace("-",""))-1
+            sUpGeneString=sGeneString[:iIndex+1]
+            sUpReadString=sReadString[:iIndex+1]
+            sUpAlignString=sAlignString[:iIndex+1]
+            iUpReadStart=tReadString[0]
+            iUpReadStop=tReadString[iIndex]
+            iUpGeneStart=tGeneString[0]
+            iUpGeneStop=tGeneString[iIndex]
             
             dData2Coord[(min(iUpGeneStart,iUpGeneStop),max(iUpGeneStart,iUpGeneStop))]={
                     "ReadId":sReadId,
@@ -2074,31 +2090,56 @@ class AlignedMatrixContent():
                     "GeneSize":iGeneSize,
                     "GeneStart":iUpGeneStart,
                     "GeneStop":iUpGeneStop,
-                    "AlignIdentity":len([X for X in range(len(sReadString)) if sReadString[X]==sGeneString[X]])/len(sReadString),
-                    "AlignGap":sGeneString.count("-")+sReadString.count("-"),
-                    "AlignSize":len(sReadString),
+                    "AlignIdentity":len([X for X in range(len(sUpGeneString)) if sUpReadString[X]==sUpGeneString[X]])/len(sUpReadString),
+                    "AlignGap":sUpGeneString.count("-")+sUpReadString.count("-"),
+                    "AlignSize":len(sUpReadString),
                     "GeneString":sUpGeneString,
                     "ReadString":sUpReadString,
                     "AlignString":sUpAlignString
                     }
-                    
-        else:
-            pass
-            #print("There is no part before RealignedSeq")
-        if dbCurrentBlockCoord[1]<iGeneStop:
-            print("There is a part after RealignedSeq")
-            exit("TODO")
-        else:
-            pass
-            #print("There is no part after RealignedSeq")
+            print("Before",dData2Coord)
         
-        sTargetGeneString=dTempDict["GeneString"][iBeforeSizePart:iAfterSizePart]
-        sTargetReadString=dTempDict["ReadString"][iBeforeSizePart:iAfterSizePart]
-        sTargetAlignString=dTempDict["AlignString"][iBeforeSizePart:iAfterSizePart]
-        iTargetReadStart=iUpReadStop+1
-        iTargetReadStop=iTargetReadStart+len(sUpReadString.replace("-",""))-1
-        iTargetGeneStart=iUpGeneStop+1
-        iTargetGeneStop=iTargetGeneStart+len(sUpGeneString.replace("-",""))-1
+        if dbCurrentBlockCoord[-1]!=tGeneString[-1]:
+            iIndex=tGeneString.index(dbCurrentBlockCoord[-1]+1)
+            
+            sDownGeneString=sGeneString[iIndex:]
+            sDownReadString=sReadString[iIndex:]
+            sDownAlignString=sAlignString[iIndex:]
+            
+            iDownReadStart=tReadString[iIndex]
+            iDownReadStop=tReadString[-1]
+            iDownGeneStart=tGeneString[iIndex]
+            iDownGeneStop=tGeneString[-1]
+            
+            dData2Coord[(min(iDownGeneStart,iDownGeneStop),max(iDownGeneStart,iDownGeneStop))]={
+                    "ReadId":sReadId,
+                    "ReadSize":iReadSize,
+                    "ReadStart":iDownReadStart,
+                    "ReadStop":iDownReadStop,
+                    "Strand":sStrand,
+                    "GeneId":sGeneId,
+                    "GeneSize":iGeneSize,
+                    "GeneStart":iDownGeneStart,
+                    "GeneStop":iDownGeneStop,
+                    "AlignIdentity":len([X for X in range(len(sDownReadString)) if sDownReadString[X]==sDownGeneString[X]])/len(sDownReadString),
+                    "AlignGap":sDownGeneString.count("-")+sDownReadString.count("-"),
+                    "AlignSize":len(sDownReadString),
+                    "GeneString":sDownGeneString,
+                    "ReadString":sDownReadString,
+                    "AlignString":sDownAlignString
+                    }
+            print("After",dData2Coord)
+            
+        iTargetIndexStart=tGeneString.index(dbCurrentBlockCoord[0])
+        iTargetIndexStop=tGeneString.index(dbCurrentBlockCoord[-1])
+        
+        sTargetGeneString=sGeneString[iTargetIndexStart:iTargetIndexStop+1]
+        sTargetReadString=sReadString[iTargetIndexStart:iTargetIndexStop+1]
+        sTargetAlignString=sAlignString[iTargetIndexStart:iTargetIndexStop+1]
+        iTargetReadStart=tReadString[iTargetIndexStart]
+        iTargetReadStop=tReadString[iTargetIndexStop]
+        iTargetGeneStart=tGeneString[iTargetIndexStart]
+        iTargetGeneStop=tGeneString[iTargetIndexStop]
         
         dData2Coord[(min(iTargetGeneStart,iTargetGeneStop),max(iTargetGeneStart,iTargetGeneStop))]={
                 "ReadId":sReadId,
@@ -2110,15 +2151,15 @@ class AlignedMatrixContent():
                 "GeneSize":iGeneSize,
                 "GeneStart":iTargetGeneStart,
                 "GeneStop":iTargetGeneStop,
-                "AlignIdentity":len([X for X in range(len(sReadString)) if sReadString[X]==sGeneString[X]])/len(sReadString),
-                "AlignGap":sGeneString.count("-")+sReadString.count("-"),
-                "AlignSize":len(sReadString),
+                "AlignIdentity":len([X for X in range(len(sTargetReadString)) if sTargetReadString[X]==sTargetGeneString[X]])/len(sTargetReadString),
+                "AlignGap":sTargetGeneString.count("-")+sTargetReadString.count("-"),
+                "AlignSize":len(sTargetReadString),
                 "GeneString":sTargetGeneString,
                 "ReadString":sTargetReadString,
                 "AlignString":sTargetAlignString
                 }
         
-        #print(dData2Coord)
+        print("All",dData2Coord)
         
         return (dData2Coord,(min(iTargetGeneStart,iTargetGeneStop),max(iTargetGeneStart,iTargetGeneStop)))
         
@@ -2203,14 +2244,22 @@ class AlignedMatrixContent():
                 sTempResult="TempLALIGN"+str(random.random())+".out"
                 
                 ExecuteBashCommand("{0} {1} {2} > {3}".format(LALIGN_LAUNCHER,sTempFastaRead,sTempFastaRef,sTempResult))
-                dOldAlignData=self.get_tr_dict_data_alt()[sLineName][dbAlignGeneCoord]
-                dNewAlignData=ParseLalignResult(sTempResult,sCurrentBlock)
+                #dOldAlignData=self.get_tr_dict_data_alt()[sLineName][dbAlignGeneCoord]
+                dOldAlignData=dDict[dbTargetSeq]
                 
+                #print(dOldAlignData)
+                #print(dDict[dbTargetSeq])
+                #exit()
+                
+                dNewAlignData=ParseLalignResult(sTempResult,sCurrentBlock)
+                print("NewAlignData",dNewAlignData)
+                
+                #print(sTempFastaRead,sTempFastaRef,sTempResult)
                 for sFile in [sTempFastaRead,sTempFastaRef,sTempResult]:
                     ExecuteBashCommand("rm {}".format(sFile))
                 
                 if len(dNewAlignData)==0:
-                    print("No potential alignment. Skip.")
+                    print("No valuable alignment. Skip.")
                     continue
                 
                 fOldDistance=dOldAlignData["AlignIdentity"]
@@ -2219,18 +2268,19 @@ class AlignedMatrixContent():
                 if fNewDistance<fOldDistance:
                     exit("TODO2066: New alignment less good than old alignment")
                 
-                
                 ##Check unaligned seq
                 iUpstreamPenalty=dNewAlignData["ReadStart"]-1
                 if iUpstreamPenalty<=REGROUP_GLOBALVECTOR_VALUE:
-                    iUpstreamPenalty=0
+                    iUpstreamPenalty=None
                 else:
-                    exit("ERROR 2239 : too long unaligned upstream to ignore it")
-                iDonwstreamPenalty=dNewAlignData["ReadSize"]-dNewAlignData["ReadStop"]
-                if iDonwstreamPenalty<=REGROUP_GLOBALVECTOR_VALUE:
-                    iDonwstreamPenalty=0
+                    #exit("ERROR 2239 : too long unaligned upstream to ignore it")
+                    print("Warning 2239 : too long unaligned upstream to ignore it")
+                iDownstreamPenalty=dNewAlignData["ReadSize"]-dNewAlignData["ReadStop"]
+                if iDownstreamPenalty<=REGROUP_GLOBALVECTOR_VALUE:
+                    iDownstreamPenalty=None
                 else:
-                    exit("ERROR 2244 : too long unaligned downstream to ignore it")
+                    #exit("ERROR 2244 : too long unaligned downstream to ignore it")
+                    print("Warning 2244 : too long unaligned downstream to ignore it")
                 
                 ##Update newAlignData with data from OldAlignData
                 sAlignedGeneSeq=dTarget2Seq[dNewAlignData["GeneId"]]
@@ -2246,6 +2296,19 @@ class AlignedMatrixContent():
                 dNewAlignData["GeneStop"]=dbAlignedGeneCoord[1]-(len(sAlignedGeneSeq)-dNewAlignData["GeneStop"])
                 dNewAlignData["GeneStart"]=dbAlignedGeneCoord[0]+dNewAlignData["GeneStart"]-1
                 
+                #DEBUG
+                print("--------------Replace--------------")
+                print("Old alignment distance : {} \n{}\n{}\n{}".format(fOldDistance,
+                    dOldAlignData["GeneString"],dOldAlignData["AlignString"],dOldAlignData["ReadString"]))
+                print("New alignment distance : {} \n{}\n{}\n{}".format(fNewDistance,
+                    dNewAlignData["GeneString"],dNewAlignData["AlignString"],dNewAlignData["ReadString"]))
+                print("--------------/Replace--------------")
+                #/DEBUG
+                
+                print(dDict)
+                print(dbTargetSeq)
+                #exit()
+                
                 del dDict[dbTargetSeq]
                 dDict[(dNewAlignData["GeneStart"],dNewAlignData["GeneStop"])]=dNewAlignData
                 
@@ -2254,26 +2317,27 @@ class AlignedMatrixContent():
                 print(dDict)
                 
                 #DEBUG
-                print("--------------Replace--------------")
-                print("Old alignment distance : {} \n{}\n{}\n{}".format(fOldDistance,
-                    dOldAlignData["GeneString"],dOldAlignData["AlignString"],dOldAlignData["ReadString"]))
-                print("New alignment distance : {} \n{}\n{}\n{}".format(fNewDistance,
-                    dNewAlignData["GeneString"],dNewAlignData["AlignString"],dNewAlignData["ReadString"]))
-                for sKey in dDict:
-                    if sKey!=(dNewAlignData["GeneStart"],dNewAlignData["GeneStop"]):
-                        print("Unchanged alignment distance : {} \n{}\n{}\n{}".format(dDict[sKey]["AlignIdentity"],
-                        dDict[sKey]["GeneString"],dDict[sKey]["AlignString"],dDict[sKey]["ReadString"]))
-                print("--------------/Replace--------------")
+                #print("--------------Replace--------------")
+                #print("Old alignment distance : {} \n{}\n{}\n{}".format(fOldDistance,
+                    #dOldAlignData["GeneString"],dOldAlignData["AlignString"],dOldAlignData["ReadString"]))
+                #print("New alignment distance : {} \n{}\n{}\n{}".format(fNewDistance,
+                    #dNewAlignData["GeneString"],dNewAlignData["AlignString"],dNewAlignData["ReadString"]))
+                #for sKey in dDict:
+                    #if sKey!=(dNewAlignData["GeneStart"],dNewAlignData["GeneStop"]):
+                        #print("Unchanged alignment distance : {} \n{}\n{}\n{}".format(dDict[sKey]["AlignIdentity"],
+                        #dDict[sKey]["GeneString"],dDict[sKey]["AlignString"],dDict[sKey]["ReadString"]))
+                #print("--------------/Replace--------------")
                 #/DEBUG
                 
                 ##Remove the OldAlignData
-                dbToRemoveReadCoord=(dOldAlignData["ReadStart"],dOldAlignData["ReadStop"])
+                dToRemoveAlignData=self.get_tr_dict_data_alt()[sLineName][dbAlignGeneCoord]
+                dbToRemoveReadCoord=(dToRemoveAlignData["ReadStart"],dToRemoveAlignData["ReadStop"])
                 self.remove_key_from_tr_dict_data_alt(sLineName,dbAlignGeneCoord)
                 self.remove_key_from_tr_dict_data(sLineName,dbToRemoveReadCoord)
                 
                 #1- Erase old Read data concerning CurrentBlock
                 dbNeighboursMissing=self.erase_lineBlock(sCurrentBlock,iLineIndex)
-                
+                                
                 ##Add the new data (unchanged and new)
                 tKey=sorted(dDict.keys())
                 for sKey in tKey:
@@ -2286,7 +2350,7 @@ class AlignedMatrixContent():
                     elif sKey==tKey[-1]:
                         self.update_alignmentMatrix(dDict[sKey],None,dbNeighboursMissing[1],iLineIndex)
                     else:
-                        self.update_alignmentMatrix(dDict[sKey],None,None,iLineIndex)
+                        self.update_alignmentMatrix(dDict[sKey],iUpstreamPenalty,iDownstreamPenalty,iLineIndex)
                     ##2- Update Read data concerning NewBlock
                     #self.update_alignmentMatrix(dNewAlignData,dbNeighboursMissing,iLineIndex)
                 return True
@@ -2308,63 +2372,6 @@ class AlignedMatrixContent():
     def update_alignmentMatrix(self,dDict,oMissingUpstream,oMissingDownstream,iLineIndex):
         ##dDict as : {'ReadStop': 778, 'GeneSize': 20825, 'ReadStart': 747, 'ReadString': 'CAATCCGCCACTCGGATAAGTATGTCTGTCAT', 'GeneId': 'ENSMUSG00000000827', 'GeneStop': 14470, 'ReadSize': 1294, 'ReadId': 'ch173_read4429_template_pass_BYK_CB_ONT_1_FAF04998_A', 'GeneStart': 14440, 'AlignIdentity': 0.90625, 'AlignString': '| |||||||||||| ||||||||| |||||||', 'AlignSize': 32, 'AlignGap': 1, 'Strand': '-', 'GeneString': 'CCATCCGCCACTCG-ATAAGTATGCCTGTCAT'}
         self.update_lineBlock(iLineIndex,dDict["GeneStart"],dDict["GeneStop"],oMissingUpstream,oMissingDownstream)
-    
-    #def update_alignmentMatrix(self,dDict,dbMissing,iLineIndex):
-        ###dDict as : {'QueryStart': 37, 'RefStart': 7, 'QueryStop': 11, 'QueryTotalSize': 42, 'Ref': 'O', 'RefTotalSize': 47, 'RefStop': 37}
-        #bAllReadCover=False
-        #iAlignedReadSize=abs(dDict["QueryStop"]-dDict["QueryStart"])+1
-        #iReadCoreSize=dDict["QueryTotalSize"]-2*CORRECT_ALIGN_STEP__EXTAND_VALUE
-        #if iAlignedReadSize>=iReadCoreSize:
-            #bAllReadCover=True
-        
-        #bAllGeneCover=False
-        #iAlignedGeneSize=abs(dDict["RefStop"]-dDict["RefStart"])+1
-        #iGeneCoreSize=dDict["RefTotalSize"]-2*CORRECT_ALIGN_STEP__EXTAND_VALUE
-        #if iAlignedGeneSize>=iGeneCoreSize:
-            #bAllGeneCover=True
-        #sGeneBlock=dDict["Ref"]
-        #dbGeneCoord=self.get_blockCoord(sGeneBlock)
-            
-        #if bAllGeneCover and bAllReadCover:
-            ###Convert all in the Gene block into 1
-            #self.update_lineBlock(iLineIndex,dbGeneCoord[0],dbGeneCoord[1],dbMissing[0],dbMissing[-1])
-            #print("All block covered")
-        #if not bAllGeneCover and bAllReadCover:
-            ###Convert the aligned Gene block into 1
-            #iRelativeGeneStart=max(dDict["RefStart"],CORRECT_ALIGN_STEP__EXTAND_VALUE)-CORRECT_ALIGN_STEP__EXTAND_VALUE
-            #iRelativeGeneStop=min(dDict["RefTotalSize"]-CORRECT_ALIGN_STEP__EXTAND_VALUE,dDict["RefStop"])-CORRECT_ALIGN_STEP__EXTAND_VALUE
-            #self.update_lineBlock(iLineIndex,dbGeneCoord[0]+iRelativeGeneStart,dbGeneCoord[0]+iRelativeGeneStop,dbMissing[0],dbMissing[-1])
-            #print("Partial block covered")
-        #if bAllGeneCover and not bAllReadCover:
-            ###Convert all in the Gene block into 1, keep unaligned gap
-            #oGapStart=dbMissing[0]
-            #oGapStop=dbMissing[-1]
-            #if dDict["QueryStop"]>dDict["QueryStart"]:
-                #iReadStrand=1
-                #iRealQueryStart=dDict["QueryStart"]
-                #iRealQueryStop=dDict["QueryStop"]
-            #else:
-                #iReadStrand=-1
-                #iRealQueryStart=dDict["QueryStop"]
-                #iRealQueryStop=dDict["QueryStart"]
-            #if iRealQueryStart>CORRECT_ALIGN_STEP__EXTAND_VALUE:
-                #iDeltaStart=iRealQueryStart-CORRECT_ALIGN_STEP__EXTAND_VALUE
-                #if oGapStart is None:
-                    #oGapStart=-iDeltaStart
-                #else:
-                    #oGapStart-=iDeltaStart
-            #if iRealQueryStop<dDict["QueryTotalSize"]-CORRECT_ALIGN_STEP__EXTAND_VALUE:
-                #iDeltaStop=dDict["QueryTotalSize"]-CORRECT_ALIGN_STEP__EXTAND_VALUE-iRealQueryStop
-                #if oGapStop is None:
-                    #oGapStop=-iDeltaStop
-                #else:
-                    #oGapStop-=iDeltaStop
-            #self.update_lineBlock(iLineIndex,dbGeneCoord[0],dbGeneCoord[1],oGapStart,oGapStop)
-            #print("Partial read covered",oGapStart,oGapStop)
-        #if not bAllGeneCover and not bAllReadCover:
-            #exit("Error 2068 : not bAllGeneCover + not bAllReadCover")
-            
-            
         
     def update_lineBlock(self,iLineIndex,iStart,iStop,iPreviousStartValue=None,iNextStopValue=None):
         for iColIndex in range(iStart,iStop+1):
