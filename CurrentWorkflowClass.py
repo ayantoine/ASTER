@@ -2097,7 +2097,7 @@ class AlignedMatrixContent():
                     "ReadString":sUpReadString,
                     "AlignString":sUpAlignString
                     }
-            print("Before",dData2Coord)
+            #print("Before",dData2Coord)
         
         if dbCurrentBlockCoord[-1]!=tGeneString[-1]:
             iIndex=tGeneString.index(dbCurrentBlockCoord[-1]+1)
@@ -2128,7 +2128,7 @@ class AlignedMatrixContent():
                     "ReadString":sDownReadString,
                     "AlignString":sDownAlignString
                     }
-            print("After",dData2Coord)
+            #print("After",dData2Coord)
             
         iTargetIndexStart=tGeneString.index(dbCurrentBlockCoord[0])
         iTargetIndexStop=tGeneString.index(dbCurrentBlockCoord[-1])
@@ -2159,7 +2159,7 @@ class AlignedMatrixContent():
                 "AlignString":sTargetAlignString
                 }
         
-        print("All",dData2Coord)
+        #print("All",dData2Coord)
         
         return (dData2Coord,(min(iTargetGeneStart,iTargetGeneStop),max(iTargetGeneStart,iTargetGeneStop)))
         
@@ -2199,7 +2199,18 @@ class AlignedMatrixContent():
             print("tReadBlock",tReadBlock)
             tGroupOfReadBlock=self.make_groupOfBlock(tReadBlock)
             print("tGroupOfReadBlock",tGroupOfReadBlock)
+            
+            ##Reorder list of suspiciousBlock, read them on direct sens for GroupOfBlock, but in reverse in each GroupOfBlock
+            #for tGroup in tGroupOfReadBlock:
+                #if len(set(tGroup) & set(tCurrentSuspiciousBlock))==0:
+                    #continue
+                #for sCurrentBlock in tGroup[::-1]:
+                    #if sCurrentBlock in tCurrentSuspiciousBlock:
+                        #break
+            
+            bReplacement=False
             for sCurrentBlock in tCurrentSuspiciousBlock:
+            
                 print(sCurrentBlock,self.get_blockCoord(sCurrentBlock))
                 
                 if sCurrentBlock==tReadBlock[0] or (sCurrentBlock==tReadBlock[1] and isinstance(tReadBlock[0],int)):
@@ -2233,7 +2244,7 @@ class AlignedMatrixContent():
                 dbAlignGeneCoord=self.get_dbAlignGeneCoord(sLineName,sCurrentBlockCoord)
                 #sAlignReadSeq=self.get_alignReadSeq(sLineName,dbAlignGeneCoord,sCurrentBlockCoord,CORRECT_ALIGN_STEP__EXTAND_VALUE)
                 dbTemp=self.extract_alignReadData(sLineName,dbAlignGeneCoord,sCurrentBlockCoord)
-                print(dbTemp)
+                #print(dbTemp)
                 dDict=dbTemp[0]
                 dbTargetSeq=dbTemp[1]
                 sAlignReadSeq=dDict[dbTargetSeq]["ReadString"].replace("-","")
@@ -2305,16 +2316,16 @@ class AlignedMatrixContent():
                 print("--------------/Replace--------------")
                 #/DEBUG
                 
-                print(dDict)
-                print(dbTargetSeq)
+                #print(dDict)
+                #print(dbTargetSeq)
                 #exit()
                 
                 del dDict[dbTargetSeq]
                 dDict[(dNewAlignData["GeneStart"],dNewAlignData["GeneStop"])]=dNewAlignData
                 
-                print(dOldAlignData)
+                #print(dOldAlignData)
                 #print(dNewAlignData)
-                print(dDict)
+                #print(dDict)
                 
                 #DEBUG
                 #print("--------------Replace--------------")
@@ -2353,6 +2364,8 @@ class AlignedMatrixContent():
                         self.update_alignmentMatrix(dDict[sKey],iUpstreamPenalty,iDownstreamPenalty,iLineIndex)
                     ##2- Update Read data concerning NewBlock
                     #self.update_alignmentMatrix(dNewAlignData,dbNeighboursMissing,iLineIndex)
+                bReplacement=True
+            if bReplacement:
                 return True
                 
         return False
@@ -2482,8 +2495,8 @@ class AlignedMatrixContent():
         sCoreLine=""
         for iLineIndex in range(len(self.get_matrix())):
             tLineModel=self.get_line_BlockName_Structure(iLineIndex)
-            print(self.get_matrix_lineName(iLineIndex))
-            print(tLineModel)
+            #print(self.get_matrix_lineName(iLineIndex))
+            #print(tLineModel)
             sCoreLine+=self.get_matrix_lineName(iLineIndex)
             tData=[]
             for sBlockName in tBlockName:
