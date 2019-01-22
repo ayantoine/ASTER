@@ -1939,8 +1939,8 @@ class AlignedMatrixContent():
                 self.assign_blockName()
                 self.assign_blockConfidence()
                 
-                print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
                 print("Correction Step : {}".format(iCorrectionStep))
+                print("================================================")
                 #Debug
                 #print("~~~~~~~~~~~Before Regroup~~~~~~~~~~~~")
                 #tGroupOfBlock=self.get_limitedBlockName()
@@ -2194,8 +2194,8 @@ class AlignedMatrixContent():
             iDownReadStart=self.get_IndexWithPositiveValueFrom(tReadString,iIndex,1)
             iDownReadStop=self.get_IndexWithPositiveValueFrom(tReadString,len(tReadString)-1,-1)
                         
-            print(tReadString)
-            print(self.get_IndexWithPositiveValueFrom(tReadString,iIndex,1),self.get_IndexWithPositiveValueFrom(tReadString,len(tReadString)-1,-1))
+            #print(tReadString)
+            #print(self.get_IndexWithPositiveValueFrom(tReadString,iIndex,1),self.get_IndexWithPositiveValueFrom(tReadString,len(tReadString)-1,-1))
             
             dData2Coord[(min(iDownGeneStart,iDownGeneStop),max(iDownGeneStart,iDownGeneStop))]={
                     "ReadId":sReadId,
@@ -2215,7 +2215,7 @@ class AlignedMatrixContent():
                     "AlignString":sDownAlignString
                     }
             #print("After",dData2Coord)
-            print("After",dData2Coord[(min(iDownGeneStart,iDownGeneStop),max(iDownGeneStart,iDownGeneStop))])
+            #print("After",dData2Coord[(min(iDownGeneStart,iDownGeneStop),max(iDownGeneStart,iDownGeneStop))])
             #exit()
             
         iTargetIndexStart=tGeneString.index(dbCurrentBlockCoord[0])
@@ -2288,7 +2288,7 @@ class AlignedMatrixContent():
             print("There is suspicious block : {}".format(tSuspiciousBlock))
         
         tGeneBlock=self.get_limitedBlockName()
-        print("tGeneBlock",tGeneBlock)
+        #print("tGeneBlock",tGeneBlock)
         
         for iLineIndex in range(len(self.get_matrix())):
             sLineName=self.get_matrix_lineName(iLineIndex)
@@ -2300,23 +2300,15 @@ class AlignedMatrixContent():
             else:
                 print("{} have {} suspicious block on {}: {}".format(sLineName,len(tCurrentSuspiciousBlock),self.get_geneId(),tCurrentSuspiciousBlock))
             
-            print(sLineName)
-            for dbKey in sorted(self.get_tr_dict_data_alt()[sLineName]):
-                dbCoord=(self.get_tr_dict_data_alt()[sLineName][dbKey]["ReadStart"],self.get_tr_dict_data_alt()[sLineName][dbKey]["ReadStop"])
-                print(dbKey,dbCoord)
+            #print(sLineName)
+            #for dbKey in sorted(self.get_tr_dict_data_alt()[sLineName]):
+                #dbCoord=(self.get_tr_dict_data_alt()[sLineName][dbKey]["ReadStart"],self.get_tr_dict_data_alt()[sLineName][dbKey]["ReadStop"])
+                #print(dbKey,dbCoord)
             tReadBlock=self.get_line_BlockName_Structure(iLineIndex)
-            print("tReadBlock",tReadBlock)
+            #print("tReadBlock",tReadBlock)
             tGroupOfReadBlock=self.make_groupOfBlock(tReadBlock)
             print("tGroupOfReadBlock",tGroupOfReadBlock)
-            
-            ##Reorder list of suspiciousBlock, read them on direct sens for GroupOfBlock, but in reverse in each GroupOfBlock
-            #for tGroup in tGroupOfReadBlock:
-                #if len(set(tGroup) & set(tCurrentSuspiciousBlock))==0:
-                    #continue
-                #for sCurrentBlock in tGroup[::-1]:
-                    #if sCurrentBlock in tCurrentSuspiciousBlock:
-                        #break
-            
+                        
             bReplacement=False
             for sCurrentBlock in tCurrentSuspiciousBlock:
             
@@ -2328,7 +2320,7 @@ class AlignedMatrixContent():
                 sPreviousBlock=self.get_PreviousConfidentBlock(tSuspiciousBlock,tCurrentSuspiciousBlock,sCurrentBlock,tReadBlock,tGroupOfReadBlock)
                 sNextBlock=self.get_NextConfidentBlock(tSuspiciousBlock,tCurrentSuspiciousBlock,sCurrentBlock,tReadBlock,tGroupOfReadBlock)
                 print("{0} chained into {1} {0} {2}".format(sCurrentBlock,sPreviousBlock,sNextBlock))
-                print(self.get_alignGeneSeq([sCurrentBlock,sPreviousBlock,sNextBlock]))
+                #print(self.get_alignGeneSeq([sCurrentBlock,sPreviousBlock,sNextBlock]))
                 
                 if sPreviousBlock is not None and sNextBlock is not None:
                     tPotentialTarget=[X for X in tGeneBlock[tGeneBlock.index(sPreviousBlock)+1:tGeneBlock.index(sNextBlock)] if X!="i" and not isinstance(X,int) and X not in tSuspiciousBlock]
@@ -2344,12 +2336,8 @@ class AlignedMatrixContent():
                     continue
                 
                 print("Potential target are {}".format(tPotentialTarget))
-                print([self.get_blockCoord(X) for X in tPotentialTarget])
-                
-                #dTarget2Seq=self.get_alignGeneSeq(tPotentialTarget,CORRECT_ALIGN_STEP__EXTAND_VALUE)
-                #dTarget2Seq=self.get_alignGeneSeq(tPotentialTarget)
-                #print(dTarget2Seq)
-                
+                #print([self.get_blockCoord(X) for X in tPotentialTarget])
+                                
                 sStartingBlockId=tPotentialTarget[0]
                 sEndingBlockId=tPotentialTarget[-1]
                 iStartingGeneCoord=self.get_blockCoord(sStartingBlockId)[0]
@@ -2367,14 +2355,14 @@ class AlignedMatrixContent():
                 dDict=dbTemp[0]
                 dbTargetSeq=dbTemp[1]
                 sAlignReadSeq=dDict[dbTargetSeq]["ReadString"].replace("-","")
-                print(sCurrentBlock,":",sAlignReadSeq)
-                print("Base Align",self.get_tr_dict_data_alt()[sLineName][dbAlignGeneCoord])
-                print("Cuted Align",dDict)
+                #print(sCurrentBlock,":",sAlignReadSeq)
+                #print("Base Align",self.get_tr_dict_data_alt()[sLineName][dbAlignGeneCoord])
+                #print("Cuted Align",dDict)
                 
                 #Store missing read alignment before and after block. If inMatrix value is 1 (exon) or 0 (intron), there is no missing read sequence around the block
                 iUpstreamBlockPenalty=min(0,self.get_submatrix_byCol(sCurrentBlockCoord[0]-1,sCurrentBlockCoord[0]-1)[iLineIndex][0])
                 iDownstreamBlockPenalty=min(0,self.get_submatrix_byCol(sCurrentBlockCoord[-1]+1,sCurrentBlockCoord[-1]+1)[iLineIndex][0])
-                print("BlockPenalty",iUpstreamBlockPenalty,iDownstreamBlockPenalty)
+                #print("BlockPenalty",iUpstreamBlockPenalty,iDownstreamBlockPenalty)
                 
                 """Hack for exonerate
                 #sTempFastaRead=WriteTempFasta({sCurrentBlock:sAlignReadSeq})
@@ -2421,7 +2409,7 @@ class AlignedMatrixContent():
                         fNewDistance=dNewAlignData[sKey]["AlignIdentity"]
                 
                 dNewAlignData=dNewAlignData[sNewKey]   
-                print("NewAlignData",dNewAlignData)                                         
+                #print("NewAlignData",dNewAlignData)                                         
                 
                 fOldDistance=dOldAlignData["AlignIdentity"]
                 #fNewDistance=dNewAlignData["AlignIdentity"]
@@ -2445,7 +2433,7 @@ class AlignedMatrixContent():
                     ##exit("ERROR 2244 : too long unaligned downstream to ignore it")
                     #print("Warning 2244 : too long unaligned downstream to ignore it")
                     
-                print("AlignPenalty",iUpstreamPenalty,iDownstreamPenalty)
+                #print("AlignPenalty",iUpstreamPenalty,iDownstreamPenalty)
                 
                 ##Update newAlignData with data from OldAlignData
                 #sAlignedGeneSeq=dTarget2Seq[dNewAlignData["GeneId"]]
@@ -2484,6 +2472,7 @@ class AlignedMatrixContent():
                 
                 ##Erase bad quality items
                 bBefore=True
+                tKeyToErase=[]
                 for dbKey in dDict:
                     if dbKey==dbNewTargetSeq:
                         bBefore=False
@@ -2496,14 +2485,17 @@ class AlignedMatrixContent():
                         else:
                             iDownstreamBlockPenalty+=iErasedSeqLength
                         print("Warning 2499 : Cuted align with coord {} is too bad and remove".format(dbKey))
-                        del dDict[dbKey]
-                print("BlockPenalty",iUpstreamBlockPenalty,iDownstreamBlockPenalty)
+                        tKeyToErase.append(dbKey)
+                        #del dDict[dbKey]
+                for dbKey in tKeyToErase:
+                    del dDict[dbKey]
+                #print("BlockPenalty",iUpstreamBlockPenalty,iDownstreamBlockPenalty)
                 
                 #DEBUG
-                print("Before change")
-                for dbKey in sorted(self.get_tr_dict_data_alt()[sLineName]):
-                    dbCoord=(self.get_tr_dict_data_alt()[sLineName][dbKey]["ReadStart"],self.get_tr_dict_data_alt()[sLineName][dbKey]["ReadStop"])
-                    print(dbKey,dbCoord)
+                #print("Before change")
+                #for dbKey in sorted(self.get_tr_dict_data_alt()[sLineName]):
+                    #dbCoord=(self.get_tr_dict_data_alt()[sLineName][dbKey]["ReadStart"],self.get_tr_dict_data_alt()[sLineName][dbKey]["ReadStop"])
+                    #print(dbKey,dbCoord)
                 #/DEBUG
                 
                 ##Remove the OldAlignData
@@ -2518,18 +2510,6 @@ class AlignedMatrixContent():
                 
                 #Add the new data (unchanged and new)
                 tKey=sorted(dDict.keys())
-                print("tKey",tKey)
-                
-                #if len(tKey)==1:
-                    ##dbNewTargetSeq is a uniq key
-                    #iUpstreamBlockPenalty+=iUpstreamPenalty
-                    #iDownstreamBlockPenalty+=iDownstreamPenalty
-                #elif len(tKey)==2:
-                    ##dbNewTargetSeq is one of the two key
-                    #if dbNewTargetSeq==tKey[0]:
-                        #iUpstreamBlockPenalty+=iUpstreamPenalty
-                    #elif
-                        #iDownstreamBlockPenalty+=iDownstreamPenalty
 
                 for dbKey in tKey:
                     dbGeneCoord=(dDict[dbKey]["GeneStart"],dDict[dbKey]["GeneStop"])
@@ -2549,22 +2529,12 @@ class AlignedMatrixContent():
                         iCurrentDownstreamPenalty+=iDownstreamBlockPenalty
                     self.update_alignmentMatrix(dDict[dbKey],iCurrentUpstreamPenalty,iCurrentDownstreamPenalty,iLineIndex)
                     
-                    
-                    #if sKey==dbNewTargetSeq:
-                        #if sKey==tKey[0]:
-                            #self.update_alignmentMatrix(dDict[sKey],dbNeighboursMissing[0],None,iLineIndex)
-                        #elif sKey==tKey[-1]:
-                            #self.update_alignmentMatrix(dDict[sKey],None,dbNeighboursMissing[1],iLineIndex)
-                        #else:
-                            #self.update_alignmentMatrix(dDict[sKey],iUpstreamPenalty,iDownstreamPenalty,iLineIndex)
-                    ##2- Update Read data concerning NewBlock
-                    #self.update_alignmentMatrix(dNewAlignData,dbNeighboursMissing,iLineIndex)
                 
                 #DEBUG
-                print("After change")
-                for dbKey in sorted(self.get_tr_dict_data_alt()[sLineName]):
-                    dbCoord=(self.get_tr_dict_data_alt()[sLineName][dbKey]["ReadStart"],self.get_tr_dict_data_alt()[sLineName][dbKey]["ReadStop"])
-                    print(dbKey,dbCoord)
+                #print("After change")
+                #for dbKey in sorted(self.get_tr_dict_data_alt()[sLineName]):
+                    #dbCoord=(self.get_tr_dict_data_alt()[sLineName][dbKey]["ReadStart"],self.get_tr_dict_data_alt()[sLineName][dbKey]["ReadStop"])
+                    #print(dbKey,dbCoord)
                 #/DEBUG    
                 
                 bReplacement=True
@@ -2577,10 +2547,10 @@ class AlignedMatrixContent():
                 tConfidence=[]
                 bOverlappingHit=False
                 
-                print("-----------")
-                for dbKey in sorted(self.get_tr_dict_data_alt()[sLineName]):
-                    dbCoord=(self.get_tr_dict_data_alt()[sLineName][dbKey]["ReadStart"],self.get_tr_dict_data_alt()[sLineName][dbKey]["ReadStop"])
-                    print(dbKey,dbCoord)
+                #print("-----------")
+                #for dbKey in sorted(self.get_tr_dict_data_alt()[sLineName]):
+                    #dbCoord=(self.get_tr_dict_data_alt()[sLineName][dbKey]["ReadStart"],self.get_tr_dict_data_alt()[sLineName][dbKey]["ReadStop"])
+                    #print(dbKey,dbCoord)
                 
                 for iCurrentDbIndex in range(len(dTr2Data[sTrId])-1):
                     dbCurrentKey=sorted(dTr2Data[sTrId])[iCurrentDbIndex]
@@ -2643,6 +2613,10 @@ class AlignedMatrixContent():
                 
                 ##Dismiss read where there is trouble into the confidence
                 if max(tConfidence)!=min(tConfidence):
+                    print("-----------")
+                    for dbKey in sorted(self.get_tr_dict_data_alt()[sLineName]):
+                        dbCoord=(self.get_tr_dict_data_alt()[sLineName][dbKey]["ReadStart"],self.get_tr_dict_data_alt()[sLineName][dbKey]["ReadStop"])
+                        print(dbKey,dbCoord)
                     print(tConfidence)
                     if not bOverlappingHit:
                         exit("ERROR 2541 : Problem into the colinearity after correction")
@@ -2670,14 +2644,12 @@ class AlignedMatrixContent():
         self.update_lineBlock(iLineIndex,dDict["GeneStart"],dDict["GeneStop"],iMissingUpstream,iMissingDownstream)
         
     def update_lineBlock(self,iLineIndex,iBaseStart,iBaseStop,iPreviousStartValue,iNextStopValue):
-        print("Previous/Start Value {}/{}".format(iPreviousStartValue,iNextStopValue))
-        print("Coord Change : {} to {}".format(iBaseStart,iBaseStop))
+        #print("Previous/Start Value {}/{}".format(iPreviousStartValue,iNextStopValue))
+        #print("Coord Change : {} to {}".format(iBaseStart,iBaseStop))
         iStart=self.get_merged_coord(iBaseStart)
         iStop=self.get_merged_coord(iBaseStop)
-        print("Coord Change replace by : {} to {}".format(iStart,iStop))
-        #iStart=iBaseStart
-        #iStop=iBaseStop
-        
+        #print("Coord Change replace by : {} to {}".format(iStart,iStop))
+                
         for iColIndex in range(iStart,iStop+1):
             self.get_matrix()[iLineIndex][iColIndex]=1
             
@@ -2704,23 +2676,14 @@ class AlignedMatrixContent():
             else:
                 exit("Error 2694 : iNextStopValue is not empty")
             
-            
-        #if iPreviousStartValue is not None:
-            #exit()
-            #if self.get_matrix()[iLineIndex][iStart-1]==0:
-                #self.get_matrix()[iLineIndex][iStart-1]=iPreviousStartValue
-            #else:
-                #exit("Error 2070 : iPreviousStartValue is not empty")
-        #if iNextStopValue is not None:
-            #exit()
-            #if self.get_matrix()[iLineIndex][iStop+1]==0:
-                #self.get_matrix()[iLineIndex][iStop+1]=iNextStopValue
-            #else:
-                #exit("Error 2076 : iPreviousStartValue is not empty")
     
     def erase_alignData_fromMatrix(self,dbAlignGeneCoord,iLineIndex):
-        iBlockStart=dbAlignGeneCoord[0]
-        iBlockStop=dbAlignGeneCoord[1]
+        iBaseStart=dbAlignGeneCoord[0]
+        iBaseStop=dbAlignGeneCoord[1]
+        iBlockStart=self.get_merged_coord(iBaseStart)
+        iBlockStop=self.get_merged_coord(iBaseStop)
+        #iBlockStart=dbAlignGeneCoord[0]
+        #iBlockStop=dbAlignGeneCoord[1]
         iBlockPreviousStartCoord=iBlockStart-1
         iBlockNextStopCoord=iBlockStop+1
         
@@ -2745,28 +2708,6 @@ class AlignedMatrixContent():
         dbBlockCoord=self.get_blockCoord(sBlockName)
         return self.erase_alignData_fromMatrix(dbBlockCoord,iLineIndex)
         
-        #iBlockStart=dbBlockCoord[0]
-        #iBlockStop=dbBlockCoord[1]
-        #iBlockPreviousStartCoord=iBlockStart-1
-        #iBlockNextStopCoord=iBlockStop+1
-        
-        #for iColIndex in range(iBlockStart,iBlockStop+1):
-            #self.get_matrix()[iLineIndex][iColIndex]=0
-        
-        #iPreviousValue=self.get_matrix()[iLineIndex][iBlockPreviousStartCoord]
-        #if iPreviousValue<0:
-            #self.get_matrix()[iLineIndex][iBlockPreviousStartCoord]=0
-        #else:
-            #iPreviousValue=0
-        
-        #iNextValue=self.get_matrix()[iLineIndex][iBlockNextStopCoord]
-        #if iNextValue<0:
-            #self.get_matrix()[iLineIndex][iBlockNextStopCoord]=0
-        #else:
-            #iNextValue=0
-            
-        return (iPreviousValue,iNextValue)
-
     def get_groupOfBlock(self):
         tBlockName=self.get_line_blockName()
         dBlock2Group={}
@@ -3111,7 +3052,7 @@ class AlignedMatrixContent():
                             tNewGroup=[iIndex]+tNewGroup
                         else:
                             dGroup2Index[iCurrentGroup]=list(tNewGroup)
-                            print("Divided into : ",[self.get_globalVector(X) for X in dGroup2Index[iCurrentGroup]],dGroup2Index[iCurrentGroup])
+                            #print("Divided into : ",[self.get_globalVector(X) for X in dGroup2Index[iCurrentGroup]],dGroup2Index[iCurrentGroup])
                             sTag=self.get_globalVector(iIndex)
                             tNewGroup=[iIndex]
                     iCurrentGroup+=1
