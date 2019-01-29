@@ -1922,7 +1922,7 @@ class AlignedMatrixContent():
             tLineModel=self.get_line_BlockName_Structure(iLineIndex)
             print(">"+self.get_matrix_lineName(iLineIndex)+"\n"+self.get_read_seq(self.get_matrix_lineName(iLineIndex)))
     
-    def apply_correction(self):
+    def apply_correction(self,sFolderPath):
         #print("DebugMe:",self.get_submatrix_byLine(2,2)[0][13357:13439])
         bMatrixIsModified=True
         iCorrectionStep=0
@@ -1970,7 +1970,7 @@ class AlignedMatrixContent():
                 #print("debug",self.get_submatrix_byCol(15895,15901))
                 #/Debug
                 
-                self.globalData2tsv("Intermediate{}.spliceSummary.tsv".format(iCorrectionStep))
+                self.globalData2tsv("{}/Intermediate{}.spliceSummary.tsv".format(sFolderPath,iCorrectionStep))
                 #print("DebugMe:",self.get_submatrix_byLine(2,2)[0][13357:13439])
     
     def make_groupOfBlock(self,tListOfBlock):

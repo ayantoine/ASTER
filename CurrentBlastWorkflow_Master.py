@@ -201,7 +201,7 @@ if __name__ == "__main__":
             ExecuteBashCommand('time python {1} -r {2} -b {0}/{0}.megablast.tsv -g {0}/{0}.fa.masked -e {0}/{0}.exonerate.txt -o {0}/{0}.exonerate.xml'.format(
                     sGeneId,SCRIPT4,BLASTDATABASE))
             print("--table...")
-            ExecuteBashCommand("time python {1} -x {0}/{0}.exonerate.xml -r {0}/{0}.fa.masked -f {0}/megablast.fa -t {0} -g {0}/{0}.gff -o {0}/{0}.spliceSummary.tsv".format(
+            ExecuteBashCommand("time python {1} -x {0}/{0}.exonerate.xml -r {0}/{0}.fa.masked -f {0}/megablast.fa -t {0} -o {0}/{0}.spliceSummary.tsv".format(
                 sGeneId,SCRIPT5))
             
             

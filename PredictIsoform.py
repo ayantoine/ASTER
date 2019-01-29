@@ -24,7 +24,7 @@ REFFILE: path to the fasta file of reference
 ########################################################################
 #Options
 parser = OptionParser(conflict_handler="resolve")
-#parser.add_option("-x","--paffile", dest="paffile")
+parser.add_option("-x","--xmlfile", dest="xmlfile")
 parser.add_option("-t","--targetid", dest="targetid")
 #parser.add_option("-g","--gfffile", dest="gfffile")
 parser.add_option("-o","--outputfile", dest="outputfile")
@@ -33,7 +33,7 @@ parser.add_option("-r","--reffile", dest="reffile")
 
 (options, args) = parser.parse_args()
 
-sInputFile=options.paffile
+sInputFile=options.xmlfile
 if not sInputFile:
     exit("Error : no xmlfile -x defined, process broken")
 
@@ -70,7 +70,7 @@ def WriteFile(sPath,sContent):
 if __name__ == "__main__":
     ##PREDICTION - Initialization
     oNanoporeContent=AlignedMatrixContent(sTargetId,sInputFile,sOutputFile,sFastaFile,sRefFile)
-    oNanoporeContent.apply_correction()
+    oNanoporeContent.apply_correction(sTargetId)
 
     
     
