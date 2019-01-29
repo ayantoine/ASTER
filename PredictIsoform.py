@@ -24,9 +24,9 @@ REFFILE: path to the fasta file of reference
 ########################################################################
 #Options
 parser = OptionParser(conflict_handler="resolve")
-parser.add_option("-x","--paffile", dest="paffile")
+#parser.add_option("-x","--paffile", dest="paffile")
 parser.add_option("-t","--targetid", dest="targetid")
-parser.add_option("-g","--gfffile", dest="gfffile")
+#parser.add_option("-g","--gfffile", dest="gfffile")
 parser.add_option("-o","--outputfile", dest="outputfile")
 parser.add_option("-f","--fastafile", dest="fastafile")
 parser.add_option("-r","--reffile", dest="reffile")
@@ -46,9 +46,9 @@ sTargetId=options.targetid
 if not sTargetId:
     sys.exit("Error : no targetid -t defined, process broken")
     
-sGffFile=options.gfffile
-if not sGffFile:
-    sys.exit("Error : no gfffile -g defined, process broken")
+#sGffFile=options.gfffile
+#if not sGffFile:
+    #sys.exit("Error : no gfffile -g defined, process broken")
 
 sFastaFile=options.fastafile
 if not sFastaFile:

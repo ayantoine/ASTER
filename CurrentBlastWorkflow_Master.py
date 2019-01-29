@@ -228,13 +228,13 @@ if __name__ == "__main__":
             print("CRASH : {}".format(e))
         
     
-    #print("GROUP FOLDERS")
-    #sFolderPath="./{}analysisOn{}_{}{}{}".format(
-                    #sCurrentVersionScript,len(dbListOfTarget),YEAR,MONTH,DAY)
-    #CreateFolder(sFolderPath)
-    #for sTargetFolder in tFolderList:
-        #ExecuteBashCommand("mv ./{1} {0}/".format(sFolderPath,sTargetFolder))
-    #print("DONE")
+    print("GROUP FOLDERS")
+    sFolderPath="./{}analysisOn{}_{}{}{}".format(
+                    sCurrentVersionScript,len(dbListOfTarget),YEAR,MONTH,DAY)
+    CreateFolder(sFolderPath)
+    for sTargetFolder in tFolderList:
+        ExecuteBashCommand("mv ./{1} {0}/".format(sFolderPath,sTargetFolder))
+    print("DONE")
 
 ########################################################################    
 iTime2=time.time()
