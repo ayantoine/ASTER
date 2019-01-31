@@ -46,9 +46,6 @@ SCRIPT3=""
 SCRIPT4=""
 SCRIPT5=""
 
-GITDIR=""
-SCRIPTGRAPH=""
-
 BLASTDATABASE=""
 
 ARGFILE_ASSIGNATION="="
@@ -101,11 +98,6 @@ def LoadArgFile(sFile):
         SCRIPT4=PYTHONDIR+"/"+dArgs['SCRIPT4']
         global SCRIPT5
         SCRIPT5=PYTHONDIR+"/"+dArgs['SCRIPT5']
-        
-        global GITDIR
-        GITDIR=dArgs['GITDIR']
-        global SCRIPTGRAPH
-        SCRIPTGRAPH=GITDIR+"/"+dArgs['SCRIPTGRAPH']
         
         global BLASTDATABASE
         BLASTDATABASE=dArgs['BLASTDATABASE']
@@ -181,6 +173,10 @@ if __name__ == "__main__":
                     sGeneId,MASKDIR,FASTADIR))
             ExecuteBashCommand("mv {0}/{1}/{0}.fa.masked {0}/{0}.fa.masked".format(
                 sGeneId,MASKDIR))
+            
+            #"""TempHack: No RepeatMasker"""
+            #ExecuteBashCommand("cp {0}/{0}.fa {0}/{0}.fa.masked".format(
+                    #sGeneId,MASKDIR))
                 
             ##Megablast pre-filter
             print("--megablast...")
@@ -228,13 +224,13 @@ if __name__ == "__main__":
             print("CRASH : {}".format(e))
         
     
-    print("GROUP FOLDERS")
-    sFolderPath="./{}analysisOn{}_{}{}{}".format(
-                    sCurrentVersionScript,len(dbListOfTarget),YEAR,MONTH,DAY)
-    CreateFolder(sFolderPath)
-    for sTargetFolder in tFolderList:
-        ExecuteBashCommand("mv ./{1} {0}/".format(sFolderPath,sTargetFolder))
-    print("DONE")
+    #print("GROUP FOLDERS")
+    #sFolderPath="./{}analysisOn{}_{}{}{}".format(
+                    #sCurrentVersionScript,len(dbListOfTarget),YEAR,MONTH,DAY)
+    #CreateFolder(sFolderPath)
+    #for sTargetFolder in tFolderList:
+        #ExecuteBashCommand("mv ./{1} {0}/".format(sFolderPath,sTargetFolder))
+    #print("DONE")
 
 ########################################################################    
 iTime2=time.time()

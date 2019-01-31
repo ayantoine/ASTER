@@ -46,6 +46,8 @@ REGROUP_READEXON_VALUE_BOOL=True
 REGROUP_READEXON_VALUE=6
 REGROUP_READEXON_THRESHOLD=0.1 #if not REGROUP_READEXON_VALUE_BOOL, use REGROUP_READEXON_THRESHOLD
 
+SUSPICIOUSBLOCK_THRESHOLD=0.1
+
 REGROUP_LASTREADEXON_THRESHOLD=0.1
 REGROUP_FIRSTREADEXON_THRESHOLD=0.1
 
@@ -2007,7 +2009,7 @@ class AlignedMatrixContent():
                 else:
                     tCurrentPop=tCurrentPop[:tCurrentPop.index(iMaxPop)+1]
                     tCurrentGroupOfBlock[-len(tCurrentPop):]
-            tSuspiciousBlock+=[tCurrentGroupOfBlock[X] for X in range(len(tCurrentPop)) if tCurrentPop[X]==1 or tCurrentPop[X]<=0.1*iMaxPop]
+            tSuspiciousBlock+=[tCurrentGroupOfBlock[X] for X in range(len(tCurrentPop)) if tCurrentPop[X]==1 or tCurrentPop[X]<=SUSPICIOUSBLOCK_THRESHOLD*iMaxPop]
         return tSuspiciousBlock
     
     def get_PreviousConfidentBlock(self,tSuspiciousBlock,tCurrentSuspiciousBlock,sCurrentBlock,tReadBlock,tGroupOfReadBlock):
@@ -2314,38 +2316,52 @@ class AlignedMatrixContent():
             
                 print(sCurrentBlock,self.get_blockCoord(sCurrentBlock))
                 
-                if sCurrentBlock==tReadBlock[0] or (sCurrentBlock==tReadBlock[1] and isinstance(tReadBlock[0],int)):
-                    continue
+                #if sCurrentBlock==tReadBlock[0] or (sCurrentBlock==tReadBlock[1] and isinstance(tReadBlock[0],int)):
+                    #continue
+                #if sCurrentBlock==tReadBlock[-1] or (sCurrentBlock==tReadBlock[-2] and isinstance(tReadBlock[-1],int)):
+                    #continue
                 
                 sPreviousBlock=self.get_PreviousConfidentBlock(tSuspiciousBlock,tCurrentSuspiciousBlock,sCurrentBlock,tReadBlock,tGroupOfReadBlock)
                 sNextBlock=self.get_NextConfidentBlock(tSuspiciousBlock,tCurrentSuspiciousBlock,sCurrentBlock,tReadBlock,tGroupOfReadBlock)
                 print("{0} chained into {1} {0} {2}".format(sCurrentBlock,sPreviousBlock,sNextBlock))
                 #print(self.get_alignGeneSeq([sCurrentBlock,sPreviousBlock,sNextBlock]))
                 
-                if sPreviousBlock is not None and sNextBlock is not None:
-                    tPotentialTarget=[X for X in tGeneBlock[tGeneBlock.index(sPreviousBlock)+1:tGeneBlock.index(sNextBlock)] if X!="i" and not isinstance(X,int) and X not in tSuspiciousBlock]
-                elif sPreviousBlock is None and sNextBlock is not None:
-                    tPotentialTarget=[X for X in tGeneBlock[0:tGeneBlock.index(sNextBlock)] if X!="i" and not isinstance(X,int) and X not in tSuspiciousBlock]
-                elif sPreviousBlock is not None and sNextBlock is None:
-                    tPotentialTarget=[X for X in tGeneBlock[tGeneBlock.index(sPreviousBlock)+1:] if X!="i" and not isinstance(X,int) and X not in tSuspiciousBlock]
-                else:
-                    exit("Error 1904 : no confident block in the read")
+                ##No more. Try against all the sequence, including intron
+                #if sPreviousBlock is not None and sNextBlock is not None:
+                    #tPotentialTarget=[X for X in tGeneBlock[tGeneBlock.index(sPreviousBlock)+1:tGeneBlock.index(sNextBlock)] if X!="i" and not isinstance(X,int) and X not in tSuspiciousBlock]
+                #elif sPreviousBlock is None and sNextBlock is not None:
+                    #tPotentialTarget=[X for X in tGeneBlock[0:tGeneBlock.index(sNextBlock)] if X!="i" and not isinstance(X,int) and X not in tSuspiciousBlock]
+                #elif sPreviousBlock is not None and sNextBlock is None:
+                    #tPotentialTarget=[X for X in tGeneBlock[tGeneBlock.index(sPreviousBlock)+1:] if X!="i" and not isinstance(X,int) and X not in tSuspiciousBlock]
+                #else:
+                    #exit("Error 1904 : no confident block in the read")
                 
-                if len(tPotentialTarget)==0:
+                #if len(tPotentialTarget)==0:
+                    #print("No potential target. Skip.")
+                    #continue
+                
+                #print("Potential target are {}".format(tPotentialTarget))
+                ##print([self.get_blockCoord(X) for X in tPotentialTarget])
+                                
+                #sStartingBlockId=tPotentialTarget[0]
+                #sEndingBlockId=tPotentialTarget[-1]
+                #iStartingGeneCoord=self.get_blockCoord(sStartingBlockId)[0]
+                #iEndingGeneCoord=self.get_blockCoord(sEndingBlockId)[1]
+                #sGeneSeq=self.get_ref_seq((iStartingGeneCoord,iEndingGeneCoord))
+                
+                if sPreviousBlock is not None:
+                    iStartingGeneCoord=self.get_blockCoord(sPreviousBlock)[1]+1
+                else:
+                    iStartingGeneCoord=0
+                if sNextBlock is not None:
+                    iEndingGeneCoord=self.get_blockCoord(sNextBlock)[0]-1
+                else:
+                    iEndingGeneCoord=len(self.get_matrix()[0])-1
+                sGeneSeq=self.get_ref_seq((iStartingGeneCoord,iEndingGeneCoord))
+                
+                if sGeneSeq="":
                     print("No potential target. Skip.")
                     continue
-                
-                print("Potential target are {}".format(tPotentialTarget))
-                #print([self.get_blockCoord(X) for X in tPotentialTarget])
-                                
-                sStartingBlockId=tPotentialTarget[0]
-                sEndingBlockId=tPotentialTarget[-1]
-                iStartingGeneCoord=self.get_blockCoord(sStartingBlockId)[0]
-                iEndingGeneCoord=self.get_blockCoord(sEndingBlockId)[1]
-                sGeneSeq=self.get_ref_seq((iStartingGeneCoord,iEndingGeneCoord))
-                #print("sFirstBlockSeq",self.get_ref_seq(self.get_blockCoord(sStartingBlockId)))
-                #print("sEndingBlockSeq",self.get_ref_seq(self.get_blockCoord(sEndingBlockId)))
-                #print("sGeneSeq",sGeneSeq)
                 
                 sCurrentBlockCoord=self.get_blockCoord(sCurrentBlock)
                 dbAlignGeneCoord=self.get_dbAlignGeneCoord(sLineName,sCurrentBlockCoord)
@@ -2620,6 +2636,9 @@ class AlignedMatrixContent():
                     print(tConfidence)
                     if not bOverlappingHit:
                         exit("ERROR 2541 : Problem into the colinearity after correction")
+                        """
+                        - Supprimer l'exon suspicieux non realigne -> read non aligne
+                        """
                     else:
                         exit("ERROR 2543 : Overlaping hit after correction")
                                 
