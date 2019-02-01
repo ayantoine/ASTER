@@ -1894,36 +1894,42 @@ class AlignedMatrixContent():
                 
                 #if sum(tCurrentVector[iCurrentGeneStart:iCurrentGeneStop+1])!=len(tCurrentVector[iCurrentGeneStart:iCurrentGeneStop+1]):
                     #exit("Error 1872 : Vector not correcting filled")
-        
+    
+    """Ajoute une relation au dictionnaire qui garde en memoire quelle valeur initiale est fusionnee vers quelle valeur finale"""    
     def add_merged_coord(self,iInitialCoord,iMergedCoord):
         self.merged_coord[iInitialCoord]=iMergedCoord
-        
+    
+    """Si la coordonnee a ete fusionnee, renvoie la valeur finale de la fusion"""
     def get_merged_coord(self,iCoord):
         try:
             return self.merged_coord[iCoord]
         except KeyError:
             return iCoord
     
+    """Renvoie l'identifiant du gene"""
     def get_geneId(self):
         return self.gene_id
     
+    """Retourne la sequence du gene comprise entre les deux coordonnees ou tout le gene si aucune coordonnees n'ont ete renseignee"""
     def get_ref_seq(self,dbCoord=False):
         if dbCoord:
             return self.ref_seq[dbCoord[0]:dbCoord[1]+1]
         else:
             return self.ref_seq
-    
+    """Retourne la sequence du read compris entre les deux coordonnees ou tout le read si aucune coordonnees n'ont ete renseignee"""
     def get_read_seq(self,sReadName,dbCoord=False):
         if dbCoord:
             return self.tr_dict_seq[sReadName][dbCoord[0]:dbCoord[1]:+1]
         else:
             return self.tr_dict_seq[sReadName]
-        
+    
+    """Affiche un read au format fasta"""    
     def print_read_seq(self):
         for iLineIndex in range(len(self.get_matrix())):
             tLineModel=self.get_line_BlockName_Structure(iLineIndex)
             print(">"+self.get_matrix_lineName(iLineIndex)+"\n"+self.get_read_seq(self.get_matrix_lineName(iLineIndex)))
     
+    """Centralise la boucle de corrections des alignements exonerate"""
     def apply_correction(self,sFolderPath):
         #print("DebugMe:",self.get_submatrix_byLine(2,2)[0][13357:13439])
         bMatrixIsModified=True
@@ -1975,6 +1981,7 @@ class AlignedMatrixContent():
                 self.globalData2tsv("{}/Intermediate{}.spliceSummary.tsv".format(sFolderPath,iCorrectionStep))
                 #print("DebugMe:",self.get_submatrix_byLine(2,2)[0][13357:13439])
     
+    """Fractionne une liste de blocs exoniques en se basant sur les introns"""
     def make_groupOfBlock(self,tListOfBlock):
         tGroupOfGroupOfBlock=[]
         tCurrentGroupOfBlock=[]
@@ -1990,6 +1997,7 @@ class AlignedMatrixContent():
                 tGroupOfGroupOfBlock.append(list(tCurrentGroupOfBlock))
         return tGroupOfGroupOfBlock
     
+    """Retourne la liste des blocs suspicieux dans une liste de blocs exoniques"""
     def get_suspiciousblock(self,tGroupOfBlock,tGroupOfGroupOfBlock):
         tSuspiciousBlock=[]
         for iIndex in range(len(tGroupOfGroupOfBlock)):
@@ -2012,6 +2020,7 @@ class AlignedMatrixContent():
             tSuspiciousBlock+=[tCurrentGroupOfBlock[X] for X in range(len(tCurrentPop)) if tCurrentPop[X]==1 or tCurrentPop[X]<=SUSPICIOUSBLOCK_THRESHOLD*iMaxPop]
         return tSuspiciousBlock
     
+    """Pour un read, retourne le premier bloc en amont du gene qui ne soit pas suspicieux"""
     def get_PreviousConfidentBlock(self,tSuspiciousBlock,tCurrentSuspiciousBlock,sCurrentBlock,tReadBlock,tGroupOfReadBlock):
         sPreviousBlock=None
         if sCurrentBlock==tGroupOfReadBlock[0][0]:
@@ -2031,6 +2040,7 @@ class AlignedMatrixContent():
             iPrevious-=1
         return sPreviousBlock
     
+    """Pour un read, retourne le premier bloc en aval du gene qui ne soit pas suspicieux"""
     def get_NextConfidentBlock(self,tSuspiciousBlock,tCurrentSuspiciousBlock,sCurrentBlock,tReadBlock,tGroupOfReadBlock):
         sNextBlock=None
         if sCurrentBlock==tGroupOfReadBlock[-1][-1]:
@@ -2050,6 +2060,7 @@ class AlignedMatrixContent():
             iNext+=1
         return sNextBlock
     
+    """Retourne les coordonnees de l'alignement contenant les coordonnees du bloc soumis"""
     def get_dbAlignGeneCoord(self,sLineName,sCurrentBlockCoord):
         tCorrespondingData=[X for X in self.get_tr_dict_data_alt()[sLineName].keys() if sCurrentBlockCoord[0] in range(X[0],X[1]+1) or sCurrentBlockCoord[1] in range(X[0],X[1]+1)]
         if len(tCorrespondingData)==0:
@@ -2080,6 +2091,7 @@ class AlignedMatrixContent():
             #iNewReadStop=iReadStop+iDeltaStart
         #return self.get_read_seq(sLineName,(iNewReadStart-iExtand,iNewReadStop+iExtand))
     
+    """Retourne l'index du prochain element different de -1, a partir de l'index soumis, dans la direction soumise"""
     def get_IndexWithPositiveValueFrom(self,tTable,iStartIndex,iDirection):
         if iDirection==1:
             iStopIndex=len(tTable)
@@ -2091,7 +2103,7 @@ class AlignedMatrixContent():
             else:
                 return tTable[iIndex]
         
-    
+    """Fractionne un alignement en fonction des coordonnees du bloc soumis"""
     def extract_alignReadData(self,sLineName,dbAlignGeneCoord,dbCurrentBlockCoord):
         dTempDict=self.get_tr_dict_data_alt()[sLineName][dbAlignGeneCoord]
         sReadId=dTempDict["ReadId"]
@@ -2265,7 +2277,7 @@ class AlignedMatrixContent():
         
         return (dData2Coord,(min(iTargetGeneStart,iTargetGeneStop),max(iTargetGeneStart,iTargetGeneStop)))
         
-        
+    """Retourne un dictionnaire bloc:sequence couverte par le bloc"""    
     def get_alignGeneSeq(self,tPotentialTarget,iExtand=0):
         dTarget2Seq={}
         for sTargetId in tPotentialTarget:
@@ -2275,6 +2287,7 @@ class AlignedMatrixContent():
     #def get_geneSeqByBlockId(self,sStartingBlockId,sEndingBlockId):
         #return self.get_ref_seq((self.get_blockCoord(sStartingBlockId)[0]-iExtand,self.get_blockCoord(sEndingBlockId)[1]))
     
+    """Corrige les cas de mesalignement d'un read contre le gene"""
     def correct_misalignment_onref(self):
         tGroupOfBlock=self.get_limitedBlockName()
         tGroupOfGroupOfBlock=self.make_groupOfBlock(tGroupOfBlock)
@@ -2646,22 +2659,28 @@ class AlignedMatrixContent():
                 
         return False
     
+    """Ajoute des informations d'alignement, clef=coordonnees sur le gene"""
     def add_key_to_tr_dict_data_alt(self,sLineName,dbGeneCoord,dDictContent):
         self.tr_dict_data_alt[sLineName][dbGeneCoord]=dDictContent
     
+    """Ajoute des informations d'alignement, clef=coordonnees sur le read"""
     def add_key_to_tr_dict_data(self,sLineName,dbReadCoord,dDictContent):
         self.tr_dict_data[sLineName][dbReadCoord]=dDictContent    
     
+    """Supprime des informations d'alignement, clef=coordonnees sur le gene"""
     def remove_key_from_tr_dict_data_alt(self,sLineName,dbGeneCoord):
         del self.tr_dict_data_alt[sLineName][dbGeneCoord]
     
+    """Supprime des informations d'alignement, clef=coordonnees sur le read"""
     def remove_key_from_tr_dict_data(self,sLineName,dbReadCoord):
         del self.tr_dict_data[sLineName][dbReadCoord]
     
+    """Lance la mise a jour de la matrice"""
     def update_alignmentMatrix(self,dDict,iMissingUpstream,iMissingDownstream,iLineIndex):
         ##dDict as : {'ReadStop': 778, 'GeneSize': 20825, 'ReadStart': 747, 'ReadString': 'CAATCCGCCACTCGGATAAGTATGTCTGTCAT', 'GeneId': 'ENSMUSG00000000827', 'GeneStop': 14470, 'ReadSize': 1294, 'ReadId': 'ch173_read4429_template_pass_BYK_CB_ONT_1_FAF04998_A', 'GeneStart': 14440, 'AlignIdentity': 0.90625, 'AlignString': '| |||||||||||| ||||||||| |||||||', 'AlignSize': 32, 'AlignGap': 1, 'Strand': '-', 'GeneString': 'CCATCCGCCACTCG-ATAAGTATGCCTGTCAT'}
         self.update_lineBlock(iLineIndex,dDict["GeneStart"],dDict["GeneStop"],iMissingUpstream,iMissingDownstream)
-        
+    
+    """Passe a 1 la matrice entre les coordonnees soumises pour la ligne soumise. Ajuste les valeurs de reads non-alignes en fonction des malus soumis"""
     def update_lineBlock(self,iLineIndex,iBaseStart,iBaseStop,iPreviousStartValue,iNextStopValue):
         #print("Previous/Start Value {}/{}".format(iPreviousStartValue,iNextStopValue))
         #print("Coord Change : {} to {}".format(iBaseStart,iBaseStop))
@@ -2695,7 +2714,7 @@ class AlignedMatrixContent():
             else:
                 exit("Error 2694 : iNextStopValue is not empty")
             
-    
+    """Passe a 0 la matrice entre les coordonnees soumises pour la ligne soumise"""
     def erase_alignData_fromMatrix(self,dbAlignGeneCoord,iLineIndex):
         iBaseStart=dbAlignGeneCoord[0]
         iBaseStop=dbAlignGeneCoord[1]
@@ -2723,10 +2742,12 @@ class AlignedMatrixContent():
             
         return (iPreviousValue,iNextValue)
     
+    """Lance la suppression d'une partie de la matrice"""
     def erase_lineBlock(self,sBlockName,iLineIndex):
         dbBlockCoord=self.get_blockCoord(sBlockName)
         return self.erase_alignData_fromMatrix(dbBlockCoord,iLineIndex)
-        
+    
+    """Retourne la liste des blocs dans le gene"""    
     def get_groupOfBlock(self):
         tBlockName=self.get_line_blockName()
         dBlock2Group={}
@@ -2746,6 +2767,7 @@ class AlignedMatrixContent():
             sPreviousBlockName=sBlockName
         return dBlock2Group
     
+    """Calcul le degre de confiance des blocs : le ratio Nombre de Read avec le bloc / Nombre de Read dans l'exon (somme des blocs contigues) * 100"""
     def assign_blockConfidence(self):
         dBlock2Group=self.get_groupOfBlock()
         tListOfGroup=sorted(list(set(dBlock2Group.values())))
@@ -2759,12 +2781,14 @@ class AlignedMatrixContent():
                 fConfidence=round(dBlock2Pop[sBlock]/iMaxPop*100,2)
                 dBlock2Confidence[sBlock]=fConfidence
         self.blockConfidence=dBlock2Confidence
-        
+
+    """Obtenir le degre de confiance d'un bloc"""
     def get_blockConfidence(self,sBlockName=None):
         if sBlockName is None:
             return self.blockConfidence
         return self.blockConfidence[sBlockName]
     
+    """Construire la table tsv de visualisation des reads et des blocs qu'ils contiennent"""
     def globalData2tsv(self,sOutputFile="Default_globalData2tsv.tsv"):
         tBlockName=self.get_limitedBlockName()
         dBlockName2Size=self.get_blockSize()
@@ -2860,10 +2884,11 @@ class AlignedMatrixContent():
         FILE.write(sStartLine+sStopLine+sSizeLine+sHeader+sCoreLine+sPopLine+sConfidenceLine)
         FILE.close()
         
-    
+    """Retourne un vecteur de la taille de la matrice avec 1:Au moins un read present a la position, 0:aucun read present"""
     def get_1Dmatrix(self):
         return [bool(X) for X in self.get_globalPopVector()]
-        
+    
+    """Calcule la taille d'un ou de tout les blocs du gene"""    
     def get_blockSize(self,sBlockName=None):
         tBlockName=self.get_globalBlockName()
         if sBlockName is not None:
@@ -2878,6 +2903,7 @@ class AlignedMatrixContent():
                 dBlock2Size[sName]=1
         return dBlock2Size
     
+    """Calcule la population d'un ou de tout les blocs du gene"""
     def get_blockPop(self,sBlockName=None):
         tGlobalPop=self.get_globalPopVector()
         tBlockName=self.get_globalBlockName()
@@ -2888,6 +2914,7 @@ class AlignedMatrixContent():
             return dResult
         return dResult[sBlockName]
     
+    """Calcule les coordonnees d'un ou de tout les blocs du gene"""
     def get_blockCoord(self,sBlockName=None):
         tBlockName=self.get_globalBlockName()
         dBlock2Coord={}
@@ -2917,6 +2944,7 @@ class AlignedMatrixContent():
             return dBlock2Coord
         return dBlock2Coord[sBlockName]
     
+    """Retourne la liste etendue des elements present dans un read ou dans l'ensemble du gene"""
     def get_line_blockName(self,iLineIndex=None):
         tIndividualBlockNameVector=[]
         if iLineIndex is not None:
@@ -2932,6 +2960,7 @@ class AlignedMatrixContent():
                 tIndividualBlockNameVector.append(tTargetedMatrixLine[iColIndex])
         return tIndividualBlockNameVector
     
+    """Retourne la liste compacte des elements presents dans un read ou dans l'ensemble du gene"""
     def get_line_BlockName_Structure(self,iLineIndex=None):
         #for iColIndex in range(len(self.get_globalBlockName())):
             #print(iColIndex,self.get_globalVector(iColIndex),self.get_globalBlockName(iColIndex),self.get_matrix()[iLineIndex][iColIndex])
@@ -2951,7 +2980,8 @@ class AlignedMatrixContent():
                 tPrintBlockName.append(tIndividualBlockNameVector[iColIndex])
         #print(tPrintBlockName)
         return tPrintBlockName
-            
+    
+    """Retourne la liste fractionne en fonctin des introns des blocs d'un gene en fonction"""        
     def get_limitedBlockName(self):
         tBlockLine=self.get_line_blockName()
         tLimitedBlock=[]
@@ -2963,7 +2993,7 @@ class AlignedMatrixContent():
                 tLimitedBlock.append(tBlockLine[iIndex])
         return tLimitedBlock
         
-    
+    """Retourne le vecteur symbolique de population en neutralisant les positions non-couvertes par le read soumis"""
     def get_lineName_Vector(self,iLineIndex):
         tIndividualVector=[]
         tGlobalVector=self.get_globalVector()
@@ -2977,7 +3007,8 @@ class AlignedMatrixContent():
                 #print(tTargetedMatrixLine[iColIndex],"Nothing")
         #print(tIndividualVector)
         return tIndividualVector
-            
+    
+    """Assigne un nom a chaque bloc"""        
     def assign_blockName(self):
         tGlobalVector=self.get_globalVector()
         tBlockNameVector=list(tGlobalVector)
@@ -2990,18 +3021,21 @@ class AlignedMatrixContent():
                 tBlockNameVector[iIndex]=sBlockName
             #print(iIndex,tGlobalVector[iIndex],tBlockNameVector[iIndex])
         self.set_globalBlockName(list(tBlockNameVector))
-        
+    
+    """Assigne une valeur specifique au vecteur contenant le nom des blocs pour l'index soumis. Si aucune valeur n'est soumises, remplace le vecteur par la nouvelle valeur"""    
     def set_globalBlockName(self,oValue,iIndex=None):        
         if iIndex is None:
             self.globalBlockName=list(oValue)
         else:
             self.globalBlockName[iIndex]=oValue
-            
+    
+    """Retourne la valeur du vecteur nom des blocs a l'index soumis, ou l'ensemble si aucun index n'est precise """        
     def get_globalBlockName(self,iIndex=None):
         if iIndex is None:
             return self.globalBlockName
         return self.globalBlockName[iIndex]
-        
+    
+    """Incremente le nom de bloc (A->...->Z->A1->...)"""
     def update_blockName(self,sName=None):
         if sName is None:
             return "A"
@@ -3011,6 +3045,7 @@ class AlignedMatrixContent():
             return sName[0]+str((int(sName[1:])+1))
         return chr(ord(sName)+1)
     
+    """Fusionne les debuts et les fins d'exons proches parmi les differents reads selon la position majoritaire"""
     def regroup_globalVector(self):
         #REGROUP_GLOBALVECTOR_VALUE
         iLastIndex=None
@@ -3281,6 +3316,7 @@ class AlignedMatrixContent():
             #print("nearGlobalVector",[self.get_globalVector(X) for X in [dGroup2Index[iGroupId][0]-1,dGroup2Index[iGroupId][-1]+1]])
             #print("-------------")
     
+    """Affiche un vecteur symbolique de facon condensee"""
     def print_individualVector(self,tVector):
         tList=[]
         sPreviousChar=None
@@ -3298,6 +3334,7 @@ class AlignedMatrixContent():
             sPreviousChar=tVector[iIndex]
         print(tList)
     
+    """Affiche le vecteur symbolique selon le debugMode soumis"""
     def print_globalVector(self,iDebugMode=0):
         tGlobalVector=self.get_globalVector()
         if iDebugMode==0:
@@ -3386,6 +3423,7 @@ class AlignedMatrixContent():
             print(tList)
             print(tListIndex)
 
+    """Construit le vecteur population liee a la matrice"""
     def setup_popVector(self):
         tMatrix=self.get_matrix()
         tGlobalPopVector=[]
@@ -3399,6 +3437,7 @@ class AlignedMatrixContent():
             tGlobalPopVector.append(iPop)
         self.globalPopVector=list(tGlobalPopVector)
     
+    """Retourne le delta de population par rapport a la position precedente"""
     def get_deltaPop_forNewStart(self,iIndex):
         if iIndex!=0:
             iPreviousPop=self.get_globalPopVector(iIndex-1)
@@ -3407,6 +3446,7 @@ class AlignedMatrixContent():
         else:
             return 0
     
+    """Retourne le delta de population par rapport a la position suivante"""
     def get_deltaPop_forNewStop(self,iIndex):
         if iIndex!=len(self.get_globalPopVector())-1:
             iPreviousPop=self.get_globalPopVector(iIndex-1)
@@ -3417,18 +3457,21 @@ class AlignedMatrixContent():
         else:
             return 0
     
+    """Retourne le vecteur population ou la valeur du vecteur a l'index soumis"""
     def get_globalPopVector(self,iIndex=None):
         if iIndex is None:
             return self.globalPopVector
         else:
             return self.globalPopVector[iIndex]
     
+    """Changer le vecteur population ou la valeur du vecteur a l'index soumis"""
     def set_globalPopVector(self,oValue,iIndex=None):
         if iIndex is None:
             self.globalPopVector=list(oValue)
         else:
             self.globalPopVector[iIndex]=oValue
     
+    """Construit le vecteur symbolique de population liee a la matrice (evolution de la population)"""
     def setup_globalVector(self):
         iSize=self.get_size()
         tVector=['']*iSize
@@ -3495,19 +3538,22 @@ class AlignedMatrixContent():
             dbPreviousVector=dbCurrentVector            
             
         self.globalVector=list(tVector)
-                
+    
+    """Retourne le vecteur symbolique de population ou la valeur du vecteur a l'index soumis"""            
     def get_globalVector(self,iIndex=None):
         if iIndex is None:
             return self.globalVector
         else:
             return self.globalVector[iIndex]
-        
+    
+    """Changer le vecteur symbolique de population ou la valeur du vecteur a l'index soumis"""
     def set_globalVector(self,oValue,iIndex=None):
         if iIndex is None:
             self.globalVector=list(oValue)
         else:
             self.globalVector[iIndex]=oValue
     
+    """Construire la matrice du gene en fonction des resultats d'alignement des reads"""
     def setup_matrix(self):
         iSize=self.get_size()
         dTr2Data=self.get_tr_dict_data()
@@ -3736,21 +3782,25 @@ class AlignedMatrixContent():
             self.set_matrix_lineName(sTrId,True)
         self.currentMatrix=list(tMatrix)
     
+    """Obtenir le nom d'un read ou de tous les reads"""
     def get_matrix_lineName(self,iIndex=None):
         if iIndex is None:
             return self.matrix_lineName
         else:
             return self.matrix_lineName[iIndex]
     
+    """Changer le nom d'un read ou de tous les reads"""
     def set_matrix_lineName(self,oValue,bAdding=False):
         if bAdding:
             self.matrix_lineName.append(oValue)
         else:
             self.matrix_lineName=oValue
-        
+    
+    """Retourne la matrice complete"""    
     def get_matrix(self):
         return self.currentMatrix
     
+    """Retourne la matrice entre deux valeurs de colonnes (incluses)"""
     def get_submatrix_byCol(self,iStartCol,iStopCol):
         tSubMatrix=[]
         tMatrix=self.get_matrix()
@@ -3760,7 +3810,8 @@ class AlignedMatrixContent():
                 tSubLine.append(tLine[iColIndex])
             tSubMatrix.append(list(tSubLine))
         return tSubMatrix
-        
+    
+    """Retourne la matrice entre deux lignes (incluses)"""    
     def get_submatrix_byLine(self,iStartLine,iStopLine):
         tSubMatrix=[]
         tMatrix=self.get_matrix()
@@ -3768,6 +3819,7 @@ class AlignedMatrixContent():
             tSubMatrix.append(list(tMatrix[iLineIndex]))
         return tSubMatrix
     
+    """Parse le fichier d'alignement xml"""
     def parse_xmlFile(self,sPathFile,sGeneId):
         dRead2Coord={}
         dRead2GeneCoord={}
@@ -3842,6 +3894,7 @@ class AlignedMatrixContent():
         self.set_tr_dict_data(dRead2Coord)
         self.set_tr_dict_data_alt(dRead2GeneCoord)
     
+    """Parse le fichier d'alignement paf"""
     def parse_pafFile(self,sPathFile,sGeneId):
         dRead2Coord={}
         dRead2GeneCoord={}
@@ -3870,24 +3923,31 @@ class AlignedMatrixContent():
         self.set_tr_dict_data(dRead2Coord)
         self.set_tr_dict_data_alt(dRead2GeneCoord)
 
+    """Assigne le dictionnaire d'alignement (clef:coordoonnees sur le gene)"""
     def set_tr_dict_data_alt(self,dDict):
         self.tr_dict_data_alt=dDict
     
+    """Renvoie le dictionnaire d'alignement (clef:coordonnees sur le gene)"""
     def get_tr_dict_data_alt(self):
         return self.tr_dict_data_alt
 
+    """Assigne le dictionnaire d'alignement (clef:coordoonnees sur le read)"""
     def set_tr_dict_data(self,dDict):
         self.tr_dict_data=dDict
     
+    """Renvoie le dictionnaire d'alignement (clef:coordonnees sur le read)"""
     def get_tr_dict_data(self):
         return self.tr_dict_data
 
+    """Renvoie la taille du gene"""
     def get_size(self):
         return self.size
         
+    """Fixe la taille du gene"""
     def set_size(self,iInt):
         self.size=iInt
 
+    """Fixe les coordonnees et le sens du gene"""
     def set_geneCoord(self,iStart,iEnd,iStrand):
         self.gene_start=iStart
         self.gene_end=iEnd
